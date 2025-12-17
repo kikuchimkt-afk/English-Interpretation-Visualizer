@@ -1,0 +1,388 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>英文解釈ビジュアライザー - Part 7</title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&family=Noto+Serif+JP:wght@400;700&display=swap" rel="stylesheet">
+    
+    <style>
+        body { font-family: 'Inter', 'Noto Sans JP', sans-serif; }
+        .font-serif { font-family: 'Times New Roman', Times, serif; }
+        .font-sans { font-family: 'Inter', 'Noto Sans JP', sans-serif; }
+        #loading { padding: 40px; text-align: center; color: #666; font-size: 14px; display: none; }
+        #error-display { color: #dc2626; padding: 20px; display: none; border: 1px solid #dc2626; margin: 20px; background: #fef2f2; border-radius: 8px; font-family: monospace; }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-900">
+
+    <div id="root"></div>
+    <div id="error-display"></div>
+
+    <script>
+        window.onerror = function(message, source, lineno, colno, error) {
+            const el = document.getElementById('error-display');
+            el.style.display = 'block';
+            el.innerHTML = '<strong>エラーが発生しました:</strong><br>' + message;
+        };
+    </script>
+
+    <script type="text/babel">
+        const ChevronRight = ({ size = 24 }) => (<svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>);
+        const ChevronLeft = ({ size = 24 }) => (<svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>);
+        const RefreshCw = ({ size = 24 }) => (<svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M23 4v6h-6"></path><path d="M1 20v-6h6"></path><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></svg>);
+
+        // --- Data Definitions (Part 7) ---
+        const SENTENCE_1 = "The situation is exactly the same in speaking and listening.";
+        const SENTENCE_2 = "People cannot go back over what they are saying orally and improve it, in the way that they can go back over what they have written and improve it.";
+        const SENTENCE_3 = "Unlike writing, ongoing speech cannot generally be changed for the better.";
+        const SENTENCE_4 = "Any effort to take back what a speaker has said while she is speaking often turns out to be more confusing.";
+
+        const RAW_SENTENCE = `${SENTENCE_1} ${SENTENCE_2} ${SENTENCE_3} ${SENTENCE_4}`;
+        const SOURCE_CREDIT = "出典元：徳島大学2019年大問１ (Part 7)";
+
+        const WORDS = RAW_SENTENCE.split(' ').map((word, index) => ({ id: index, text: word }));
+
+        const JP_CHUNKS = [
+            { id: 0, text: "その状況は" },
+            { id: 1, text: "話すことと聞くことにおいても" },
+            { id: 2, text: "全く同じである。" },
+            { id: 3, text: "人々は" },
+            { id: 4, text: "口頭で話していること（言っていること）を" },
+            { id: 5, text: "後戻りして" },
+            { id: 6, text: "それを改善することは" },
+            { id: 7, text: "できない。" },
+            { id: 8, text: "彼らが書いたものに" },
+            { id: 9, text: "立ち戻って" },
+            { id: 10, text: "改善できるようなやり方では" },
+            { id: 11, text: "書くこととは違って、" },
+            { id: 12, text: "進行中の発話は" },
+            { id: 13, text: "一般的に" },
+            { id: 14, text: "改善されることはできない。" },
+            { id: 15, text: "話し手が話している間に" },
+            { id: 16, text: "言ったことを" },
+            { id: 17, text: "撤回しようとする" },
+            { id: 18, text: "いかなる努力も" },
+            { id: 19, text: "しばしば" },
+            { id: 20, text: "より混乱させる結果となる。" }
+        ];
+
+        const range = (start, end) => Array.from({ length: end - start + 1 }, (_, i) => start + i);
+
+        const COLORS = {
+            S: '#ef4444', V: '#ef4444', O: '#ef4444', C: '#ef4444',
+            REL: '#3b82f6', MOD: '#10b981', ETC: '#f97316', GRAY: '#64748b'
+        };
+
+        const STEPS = [
+            {
+                title: "第1文: 状況は同じ",
+                description: "「その状況(S)は、話すことと聞くことにおいても、全く同じ(C)である」。P6で述べた舞台芸術の原則が、話し言葉にも当てはまるという宣言です。",
+                annotations: [
+                    { type: 'symbol', targetId: 1, label: 'S', color: COLORS.S }, // situation
+                    { type: 'symbol', targetId: 2, label: 'V', color: COLORS.V }, // is
+                    { type: 'symbol', targetId: 5, label: 'C', color: COLORS.C }, // same
+                    { type: 'bracket-sub', startId: 6, endId: 9, label: 'M', color: COLORS.GRAY } // in speaking and listening
+                ],
+                highlightIds: range(0, 9),
+                jpHighlightIds: [0, 1, 2],
+                mainColor: COLORS.S
+            },
+            {
+                title: "第2文: 修正不能の原則",
+                description: "「人々(S)は、口頭で言っていることを(O)後戻りして改善することはできない(V)」。否定文の核心。",
+                annotations: [
+                    { type: 'symbol', targetId: 10, label: 'S', color: COLORS.S }, // People
+                    { type: 'symbol', targetId: 11, label: '否定', color: COLORS.GRAY }, // cannot
+                    { type: 'symbol', targetId: 12, label: 'V', color: COLORS.V }, // go back
+                    { type: 'symbol', targetId: 22, label: 'V', color: COLORS.V }, // improve
+                    { type: 'bracket-start', targetId: 15, color: COLORS.O }, // what
+                    { type: 'bracket-sub', startId: 15, endId: 20, label: 'O', color: COLORS.O } // what they are saying orally
+                ],
+                highlightIds: range(10, 23),
+                jpHighlightIds: [3, 4, 5, 6, 7],
+                mainColor: COLORS.V
+            },
+            {
+                title: "比較対象 (in the way that)",
+                description: "「〜のようなやり方で」。書き言葉（修正可能なもの）との対比を示す部分です。",
+                annotations: [
+                    { type: 'bracket-start', targetId: 24, color: COLORS.MOD }, // in the way
+                    { type: 'bracket-sub', startId: 24, endId: 38, label: '比較M', color: COLORS.MOD },
+                    { type: 'arrow', fromId: 27, toId: 24, color: COLORS.MOD }, // that -> way
+                ],
+                highlightIds: range(24, 38),
+                jpHighlightIds: [8, 9, 10],
+                mainColor: COLORS.MOD
+            },
+            {
+                title: "第3文: 結論の繰り返し",
+                description: "「書くこととは違って(M)、進行中の発話(S)は、一般的に改善できない(V/M/C)」。",
+                annotations: [
+                    { type: 'bracket-sub', startId: 39, endId: 40, label: 'M', color: COLORS.GRAY }, // Unlike writing
+                    { type: 'symbol', targetId: 42, label: 'S', color: COLORS.S }, // speech
+                    { type: 'symbol', targetId: 45, label: 'V', color: COLORS.V }, // be changed
+                    { type: 'symbol', targetId: 44, label: 'M', color: COLORS.GRAY } // generally
+                ],
+                highlightIds: range(39, 48),
+                jpHighlightIds: [11, 12, 13, 14],
+                mainColor: COLORS.S
+            },
+            {
+                title: "第4文: 修正の悪影響",
+                description: "「いかなる努力(S)も、しばしば混乱させる結果となる(V/C)」。口頭で訂正しようとする行為のマイナス面。",
+                annotations: [
+                    { type: 'symbol', targetId: 49, label: 'S', color: COLORS.S }, // Any effort
+                    { type: 'symbol', targetId: 62, label: 'M', color: COLORS.GRAY }, // often
+                    { type: 'symbol', targetId: 63, label: 'V', color: COLORS.V }, // turns out
+                    { type: 'bracket-sub', startId: 64, endId: 67, label: 'C', color: COLORS.C } // to be more confusing
+                ],
+                highlightIds: [49, 50, 62, 63, 64, 65, 66, 67],
+                jpHighlightIds: [18, 19, 20],
+                mainColor: COLORS.C
+            },
+            {
+                title: "不定詞句 (to take back)",
+                description: "不定詞句 'to take back...' が 'effort' を修飾。「（言ったことを）撤回しようとする」。",
+                annotations: [
+                    { type: 'symbol', targetId: 49, label: 'S', color: COLORS.S },
+                    { type: 'bracket-start', targetId: 51, color: COLORS.ETC }, // to take back
+                    { type: 'bracket-sub', startId: 51, endId: 61, label: 'M', color: COLORS.ETC }, // to take back... speaking
+                ],
+                highlightIds: range(51, 61),
+                jpHighlightIds: [15, 16, 17],
+                mainColor: COLORS.ETC
+            },
+        ];
+
+        // --- Component Implementation ---
+        function EnglishParser() {
+            const [currentStep, setCurrentStep] = React.useState(0);
+            const [wordPositions, setWordPositions] = React.useState({});
+            const containerRef = React.useRef(null);
+            const canvasRef = React.useRef(null);
+            const wordRefs = React.useRef([]);
+
+            const calculatePositions = () => {
+                if (!containerRef.current) return;
+                const containerRect = containerRef.current.getBoundingClientRect();
+                const computedStyle = window.getComputedStyle(containerRef.current);
+                const borderLeft = parseFloat(computedStyle.borderLeftWidth) || 0;
+                const borderTop = parseFloat(computedStyle.borderTopWidth) || 0;
+                const positions = {};
+
+                WORDS.forEach((_, index) => {
+                    const el = wordRefs.current[index];
+                    if (el) {
+                        const rect = el.getBoundingClientRect();
+                        const relativeTop = rect.top - containerRect.top - borderTop;
+                        const relativeBottom = rect.bottom - containerRect.top - borderTop;
+                        const relativeLeft = rect.left - containerRect.left - borderLeft;
+                        const relativeRight = rect.right - containerRect.left - borderLeft;
+                        
+                        positions[index] = {
+                            x: relativeLeft, y: relativeTop, width: rect.width, height: rect.height,
+                            drawTop: relativeTop, drawBottom: relativeBottom, 
+                            left: relativeLeft, right: relativeRight - 4,
+                            centerX: (relativeLeft + (relativeRight - 4)) / 2
+                        };
+                    }
+                });
+                setWordPositions(positions);
+            };
+
+            React.useEffect(() => {
+                const init = async () => {
+                    await document.fonts.ready;
+                    calculatePositions();
+                    const loadingEl = document.getElementById('loading');
+                    if (loadingEl) loadingEl.style.display = 'none';
+                };
+                init();
+                const resizeObserver = new ResizeObserver(() => calculatePositions());
+                if (containerRef.current) resizeObserver.observe(containerRef.current);
+                window.addEventListener('resize', calculatePositions);
+                return () => {
+                    resizeObserver.disconnect();
+                    window.removeEventListener('resize', calculatePositions);
+                };
+            }, []);
+
+            React.useLayoutEffect(() => calculatePositions(), [currentStep]);
+            React.useEffect(() => drawCanvas(), [wordPositions, currentStep]);
+
+            const drawCanvas = () => {
+                const canvas = canvasRef.current;
+                const ctx = canvas?.getContext('2d');
+                if (!canvas || !ctx || Object.keys(wordPositions).length === 0) return;
+
+                const dpr = window.devicePixelRatio || 1;
+                const container = containerRef.current;
+                const width = container.clientWidth;
+                const height = container.clientHeight;
+                
+                canvas.width = width * dpr;
+                canvas.height = height * dpr;
+                canvas.style.width = `${width}px`;
+                canvas.style.height = `${height}px`;
+                ctx.scale(dpr, dpr);
+                ctx.clearRect(0, 0, width, height);
+                ctx.lineCap = 'round';
+                ctx.lineJoin = 'round';
+
+                (STEPS[currentStep].annotations || []).forEach(anim => {
+                    const pos = wordPositions[anim.targetId ?? anim.startId ?? 0];
+                    if (!pos) return;
+                    const drawColor = anim.color || '#000';
+                    ctx.strokeStyle = drawColor;
+                    ctx.fillStyle = drawColor;
+                    ctx.lineWidth = 2;
+
+                    if (anim.type === 'symbol') {
+                        const lineY = pos.drawBottom; 
+                        ctx.beginPath(); ctx.moveTo(pos.left, lineY); ctx.lineTo(pos.right, lineY); ctx.stroke();
+                        ctx.font = 'bold 14px "Inter", sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'top'; 
+                        ctx.fillText(anim.label || '', pos.centerX, lineY + 4);
+                    }
+                    if (anim.type === 'bracket-start') {
+                        const topY = pos.drawTop; const bottomY = pos.drawBottom; const x = pos.left - 4;
+                        ctx.beginPath(); ctx.moveTo(x + 5, topY); ctx.lineTo(x, topY); ctx.lineTo(x, bottomY); ctx.lineTo(x + 5, bottomY); ctx.stroke();
+                    }
+                    if (anim.type === 'bracket-full' || anim.type === 'bracket-sub') {
+                        const startP = wordPositions[anim.startId]; const endP = wordPositions[anim.endId];
+                        if (startP && endP) {
+                            const startTop = startP.drawTop; const startBottom = startP.drawBottom; const startX = startP.left - 4;
+                            const endTop = endP.drawTop; const endBottom = endP.drawBottom; const endX = endP.right + 4;
+                            ctx.beginPath(); ctx.moveTo(startX + 5, startTop); ctx.lineTo(startX, startTop); ctx.lineTo(startX, startBottom); ctx.lineTo(startX + 5, startBottom); ctx.stroke();
+                            ctx.beginPath(); ctx.moveTo(endX - 5, endTop); ctx.lineTo(endX, endTop); ctx.lineTo(endX, endBottom); ctx.lineTo(endX - 5, endBottom); ctx.stroke();
+                            if (anim.label) {
+                                ctx.font = '12px sans-serif'; ctx.textAlign = 'left'; ctx.textBaseline = 'bottom';
+                                ctx.fillText(anim.label, startX, startTop - 2);
+                            }
+                        }
+                    }
+                    if (anim.type === 'arrow') {
+                        const from = wordPositions[anim.fromId]; const to = wordPositions[anim.toId];
+                        if (from && to) {
+                            const startX = from.centerX; const startY = from.drawTop; const endX = to.centerX; const endY = to.drawTop; 
+                            const dist = Math.abs(endX - startX); const archHeight = Math.min(40, dist * 0.2 + 15); const cpY = Math.min(startY, endY) - archHeight;
+                            ctx.beginPath(); ctx.moveTo(startX, startY); ctx.quadraticCurveTo((startX + endX) / 2, cpY, endX, endY); ctx.stroke();
+                            const angle = Math.atan2(endY - cpY, endX - (startX + endX) / 2);
+                            const headLen = 8;
+                            ctx.beginPath(); ctx.moveTo(endX, endY);
+                            ctx.lineTo(endX - headLen * Math.cos(angle - Math.PI / 6), endY - headLen * Math.sin(angle - Math.PI / 6));
+                            ctx.lineTo(endX - headLen * Math.cos(angle + Math.PI / 6), endY - headLen * Math.sin(angle + Math.PI / 6));
+                            ctx.fill();
+                        }
+                    }
+                    if (anim.type === 'slash') {
+                        const p = wordPositions[anim.targetId];
+                        ctx.beginPath();
+                        const x = p.right + 6; const top = p.drawTop - 2; const bottom = p.drawBottom + 2;
+                        ctx.moveTo(x - 4, bottom); ctx.lineTo(x + 4, top); ctx.stroke();
+                    }
+                    if (anim.type === 'underline') {
+                        const start = wordPositions[anim.startId]; const end = wordPositions[anim.endId];
+                        if (start && end) {
+                            const lineY = Math.max(start.drawBottom, end.drawBottom) + 2;
+                            ctx.beginPath(); ctx.setLineDash([3, 3]); ctx.moveTo(start.left, lineY); ctx.lineTo(end.right, lineY); ctx.stroke(); ctx.setLineDash([]);
+                            if (anim.label) {
+                                ctx.font = '11px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'top'; ctx.fillStyle = '#64748b';
+                                ctx.fillText(anim.label, (start.left + end.right) / 2, lineY + 3);
+                            }
+                        }
+                    }
+                });
+            };
+
+            const nextStep = () => {
+                if (currentStep < STEPS.length - 1) {
+                    setCurrentStep(c => c + 1);
+                    const nextAnnotations = STEPS[currentStep + 1].annotations;
+                    if (nextAnnotations && nextAnnotations.length > 0) {
+                        const targetId = nextAnnotations[0].targetId ?? nextAnnotations[0].startId ?? 0;
+                        const el = wordRefs.current[targetId];
+                        if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    }
+                }
+            };
+            const prevStep = () => { if (currentStep > 0) setCurrentStep(c => c - 1); };
+
+            return (
+                <div className="max-w-4xl mx-auto p-6 min-h-screen pb-32">
+                    <div class="mb-6 border-b pb-4 flex justify-between items-center sticky top-0 bg-slate-50 z-20 pt-2 shadow-sm">
+                        <div>
+                            <a href="index.html" class="text-blue-500 hover:text-blue-700 text-sm flex items-center mb-1">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-1"><path d="M3 12h18M12 5l-7 7 7 7"></path></svg>
+                                トップへ戻る
+                            </a>
+                            <h1 class="text-2xl font-bold text-slate-800">英文解釈ビジュアライザー</h1>
+                            <p class="text-slate-500 text-sm">Part 7: 修正不可であることの再確認</p>
+                        </div>
+                        <div class="flex gap-2">
+                            <div class="bg-white px-3 py-1 rounded border shadow-sm text-sm">Step {currentStep + 1} / {STEPS.length}</div>
+                        </div>
+                    </div>
+
+                    <div class="mb-2"><span class="text-xs font-bold text-slate-400 uppercase tracking-wider pl-1">English</span></div>
+                    <div ref={containerRef} class="relative bg-white rounded-xl shadow-lg border border-slate-200 p-8 mb-4 overflow-hidden">
+                        <canvas ref={canvasRef} class="absolute top-0 left-0 w-full h-full pointer-events-none z-10" />
+                        <div class="relative z-0 text-xl leading-loose font-serif text-slate-800 tracking-wide">
+                            {WORDS.map((word, i) => (
+                                <span key={i} ref={el => { wordRefs.current[i] = el; }} style={{ paddingRight: i === WORDS.length - 1 ? 0 : '0.3em' }}
+                                    class={`inline-block leading-tight transition-all duration-300 ${(STEPS[currentStep].highlightIds || []).includes(i) ? 'bg-yellow-300 text-slate-900 rounded-sm' : ''}`}
+                                >{word.text}</span>
+                            ))}
+                        </div>
+                    </div>
+                    
+                    <div class="mb-6 text-right">
+                        <p class="text-sm text-slate-500 font-medium italic">{SOURCE_CREDIT}</p>
+                    </div>
+
+                    <div class="mb-2"><span class="text-xs font-bold text-slate-400 uppercase tracking-wider pl-1">Japanese Translation</span></div>
+                    <div class="bg-slate-100 rounded-xl border border-slate-200 p-6 mb-6 text-lg leading-loose font-sans text-slate-700 shadow-inner">
+                        {JP_CHUNKS.map((chunk) => {
+                            const isActive = (STEPS[currentStep].jpHighlightIds || []).includes(chunk.id);
+                            const activeColor = STEPS[currentStep].mainColor || '#000';
+                            return (
+                                <span key={chunk.id} class={`transition-all duration-300 inline-block px-0.5 rounded-sm ${isActive ? 'bg-white shadow-sm font-bold' : 'opacity-60'}`}
+                                    style={{ color: isActive ? activeColor : undefined, borderBottom: isActive ? `2px solid ${activeColor}` : '2px solid transparent', transform: isActive ? 'scale(1.02)' : 'scale(1)' }}
+                                >{chunk.text}</span>
+                            );
+                        })}
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 sticky bottom-6 z-20">
+                        <div class="md:col-span-1 flex flex-col gap-3">
+                            <div class="flex gap-2 justify-center md:justify-start">
+                                <button onClick={prevStep} disabled={currentStep === 0} class="flex items-center gap-2 px-4 py-2 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 disabled:opacity-50 transition-colors shadow-sm"><ChevronLeft size={18} /> 前へ</button>
+                                <button onClick={nextStep} disabled={currentStep === STEPS.length - 1} class="flex items-center gap-2 px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors shadow-md">次へ <ChevronRight size={18} /></button>
+                            </div>
+                            <button onClick={() => setCurrentStep(0)} class="flex items-center gap-2 text-slate-500 text-sm justify-center md:justify-start hover:text-slate-800 bg-white/80 p-1 rounded"><RefreshCw size={14} /> 最初からやり直す</button>
+                        </div>
+                        <div class="md:col-span-2 bg-slate-800 text-white p-6 rounded-lg shadow-lg transition-all duration-300 opacity-95 border-l-4" style={{ borderLeftColor: STEPS[currentStep].mainColor || '#3b82f6' }}>
+                            <h3 class="text-lg font-bold mb-2 flex items-center gap-2" style={{ color: STEPS[currentStep].mainColor ? '#fff' : '#93c5fd' }}>
+                                <span class="px-2 py-0.5 rounded text-sm font-bold text-slate-900" style={{ backgroundColor: STEPS[currentStep].mainColor || '#fff' }}>Step {currentStep + 1}</span>
+                                {STEPS[currentStep].title}
+                            </h3>
+                            <p class="text-slate-300 leading-relaxed">{STEPS[currentStep].description}</p>
+                        </div>
+                    </div>
+                </div>
+            );
+        }
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<EnglishParser />);
+    </script>
+</body>
+</html>

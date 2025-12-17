@@ -1,0 +1,442 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>英文解釈ビジュアライザー - 徳島大学2019 (Part 3)</title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- React & Babel -->
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&family=Noto+Serif+JP:wght@400;700&display=swap" rel="stylesheet">
+    
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        .font-serif { font-family: 'Times New Roman', Times, serif; }
+        .font-sans { font-family: 'Inter', 'Noto Sans JP', sans-serif; }
+        #loading { padding: 40px; text-align: center; color: #666; font-size: 14px; }
+        #error-display { color: #dc2626; padding: 20px; display: none; border: 1px solid #dc2626; margin: 20px; background: #fef2f2; border-radius: 8px; font-family: monospace; }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-900">
+
+    <div id="root">
+        <div id="loading">
+            <div class="animate-pulse">
+                <div class="h-4 bg-slate-200 rounded w-3/4 mx-auto mb-4"></div>
+                <div class="h-4 bg-slate-200 rounded w-1/2 mx-auto"></div>
+            </div>
+            <p class="mt-4">アプリケーションを読み込んでいます...</p>
+            <p class="mt-2 text-xs text-slate-400">画面が変わらない場合は、ファイルを「UTF-8」で保存し直してください。</p>
+        </div>
+    </div>
+    <div id="error-display"></div>
+
+    <script>
+        window.onerror = function(message, source, lineno, colno, error) {
+            const el = document.getElementById('error-display');
+            el.style.display = 'block';
+            el.innerHTML = '<strong>エラーが発生しました:</strong><br>' + message;
+            document.getElementById('loading').style.display = 'none';
+        };
+    </script>
+
+    <script type="text/babel">
+        // Icons
+        const ChevronRight = ({ size = 24 }) => (<svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>);
+        const ChevronLeft = ({ size = 24 }) => (<svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>);
+        const RefreshCw = ({ size = 24 }) => (<svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M23 4v6h-6"></path><path d="M1 20v-6h6"></path><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></svg>);
+
+        // --- Data Definitions (Part 3) ---
+        const SENTENCE_1 = "The fluidity and fluency of speaking is the reason why this is not so.";
+        const SENTENCE_2 = "People are always able to go back over what they have read, read it again, and make a better job of it.";
+        const SENTENCE_3 = "People can improve their reading endlessly, by reading something over and over again.";
+        const SENTENCE_4 = "I have done this in my own reading of the great books.";
+
+        const RAW_SENTENCE = `${SENTENCE_1} ${SENTENCE_2} ${SENTENCE_3} ${SENTENCE_4}`;
+        const SOURCE_CREDIT = "出典元：徳島大学2019年大問１ (Mortimer J. Adler, 'How to Speak, How to Listen')";
+
+        const WORDS = RAW_SENTENCE.split(' ').map((word, index) => ({ id: index, text: word }));
+
+        const JP_CHUNKS = [
+            // Sentence 1
+            { id: 0, text: "話すことの" },
+            { id: 1, text: "流動性と流暢さが、" },
+            { id: 2, text: "これがそうではない（修正できない）" },
+            { id: 3, text: "理由である。" },
+            // Sentence 2
+            { id: 4, text: "人々は" },
+            { id: 5, text: "自分が読んだものを" },
+            { id: 6, text: "いつでも読み返し、" },
+            { id: 7, text: "それをもう一度読み、" },
+            { id: 8, text: "より良く理解する" },
+            { id: 9, text: "ことができる。" },
+            // Sentence 3
+            { id: 10, text: "人々は" },
+            { id: 11, text: "自分の読み（読解力）を" },
+            { id: 12, text: "無限に向上させることができる" },
+            { id: 13, text: "何度も何度も繰り返し読むことによって。" },
+            // Sentence 4
+            { id: 14, text: "私は" },
+            { id: 15, text: "名著を自分自身で読む際に" },
+            { id: 16, text: "これを行ってきた。" }
+        ];
+
+        const range = (start, end) => Array.from({ length: end - start + 1 }, (_, i) => start + i);
+
+        const COLORS = {
+            S: '#ef4444', V: '#ef4444', O: '#ef4444', C: '#ef4444',
+            REL: '#3b82f6', MOD: '#10b981', ETC: '#f97316', GRAY: '#64748b'
+        };
+
+        const STEPS = [
+            // --- 第1文 ---
+            {
+                title: "第1文: 話すことの特性",
+                description: "「話すことの流動性(S)が、理由(C)である」。前の文脈（読み書きは修正できるが、話し言葉はそうではない）を受けています。",
+                annotations: [
+                    { type: 'symbol', targetId: 1, label: 'S', color: COLORS.S }, // fluidity
+                    { type: 'symbol', targetId: 3, label: 'S', color: COLORS.S }, // fluency
+                    { type: 'bracket-sub', startId: 4, endId: 5, label: 'of speaking', color: COLORS.GRAY },
+                    { type: 'symbol', targetId: 6, label: 'V', color: COLORS.V }, // is
+                    { type: 'symbol', targetId: 8, label: 'C', color: COLORS.C }, // reason
+                ],
+                highlightIds: range(0, 8),
+                jpHighlightIds: [0, 1, 3],
+                mainColor: COLORS.S
+            },
+            {
+                title: "関係副詞 why",
+                description: "「なぜそうではないのかという理由」。'this is not so' は、前のパラグラフで述べられた「修正可能であること(amendable)」が、話し言葉には当てはまらないことを指します。",
+                annotations: [
+                    { type: 'symbol', targetId: 8, label: 'C', color: COLORS.C },
+                    { type: 'arrow', fromId: 9, toId: 8, color: COLORS.REL }, // why -> reason
+                    { type: 'bracket-start', targetId: 9, color: COLORS.REL }, // why
+                    { type: 'symbol', targetId: 10, label: "S'", color: COLORS.REL }, // this
+                    { type: 'symbol', targetId: 11, label: "V'", color: COLORS.REL }, // is
+                ],
+                highlightIds: range(8, 13),
+                jpHighlightIds: [2],
+                mainColor: COLORS.REL
+            },
+
+            // --- 第2文 ---
+            {
+                title: "第2文: 読むことの利点",
+                description: "「人々(S)は...戻ることができる(go back)」。話し言葉との対比として、読書の話に戻ります。",
+                annotations: [
+                    { type: 'symbol', targetId: 14, label: 'S', color: COLORS.S }, // People
+                    { type: 'symbol', targetId: 19, label: 'V', color: COLORS.V }, // go back
+                    { type: 'bracket-sub', startId: 21, endId: 21, label: 'prep', color: COLORS.GRAY }, // over
+                    { type: 'bracket-start', targetId: 22, color: COLORS.MOD }, // what
+                    { type: 'bracket-sub', startId: 22, endId: 25, label: 'O', color: COLORS.MOD }, // what they have read
+                ],
+                highlightIds: range(14, 25),
+                jpHighlightIds: [4, 5, 6, 9],
+                mainColor: COLORS.S
+            },
+            {
+                title: "並列構造 (read it again)",
+                description: "カンマで動詞が並列されています。「それをもう一度読む(read it again)」ことができる。",
+                annotations: [
+                    { type: 'symbol', targetId: 14, label: 'S', color: COLORS.S },
+                    { type: 'symbol', targetId: 26, label: 'V', color: COLORS.V }, // read
+                    { type: 'symbol', targetId: 27, label: 'O', color: COLORS.O }, // it
+                    { type: 'symbol', targetId: 28, label: 'M', color: COLORS.GRAY }, // again
+                ],
+                highlightIds: [26, 27, 28],
+                jpHighlightIds: [7],
+                mainColor: COLORS.V
+            },
+            {
+                title: "並列構造 (make a better job)",
+                description: "そして「それをより良く仕上げる(make a better job of it)＝より良く理解する」ことができる。",
+                annotations: [
+                    { type: 'symbol', targetId: 14, label: 'S', color: COLORS.S },
+                    { type: 'symbol', targetId: 30, label: 'V', color: COLORS.V }, // make
+                    { type: 'symbol', targetId: 33, label: 'O', color: COLORS.O }, // job
+                    { type: 'bracket-sub', startId: 34, endId: 35, label: 'M', color: COLORS.GRAY }, // of it
+                ],
+                highlightIds: range(29, 35),
+                jpHighlightIds: [8, 9],
+                mainColor: COLORS.O
+            },
+
+            // --- 第3文 ---
+            {
+                title: "第3文: 無限の向上",
+                description: "「人々(S)は自分の読みを向上させることができる(can improve)」。",
+                annotations: [
+                    { type: 'symbol', targetId: 36, label: 'S', color: COLORS.S }, // People
+                    { type: 'symbol', targetId: 38, label: 'V', color: COLORS.V }, // improve
+                    { type: 'symbol', targetId: 40, label: 'O', color: COLORS.O }, // reading
+                    { type: 'symbol', targetId: 41, label: 'M', color: COLORS.ETC }, // endlessly
+                ],
+                highlightIds: range(36, 41),
+                jpHighlightIds: [10, 11, 12],
+                mainColor: COLORS.V
+            },
+            {
+                title: "手段 (by reading)",
+                description: "「何度も何度も繰り返し読むことによって(by reading...)」。",
+                annotations: [
+                    { type: 'bracket-start', targetId: 42, color: COLORS.MOD }, // by
+                    { type: 'bracket-sub', startId: 42, endId: 48, label: '手段', color: COLORS.MOD }, // by ... again
+                    { type: 'symbol', targetId: 43, label: 'Gerund', color: COLORS.MOD }, // reading
+                ],
+                highlightIds: range(42, 48),
+                jpHighlightIds: [13],
+                mainColor: COLORS.MOD
+            },
+
+            // --- 第4文 ---
+            {
+                title: "第4文: 筆者の経験",
+                description: "「私(I)はこれを行ってきた(have done this)」。Adler自身の経験談です。",
+                annotations: [
+                    { type: 'symbol', targetId: 49, label: 'S', color: COLORS.S }, // I
+                    { type: 'symbol', targetId: 51, label: 'V', color: COLORS.V }, // have done
+                    { type: 'symbol', targetId: 52, label: 'O', color: COLORS.O }, // this
+                ],
+                highlightIds: range(49, 52),
+                jpHighlightIds: [14, 16],
+                mainColor: COLORS.S
+            },
+            {
+                title: "in my own reading...",
+                description: "「名著(great books)の私自身の読書において」。Adlerは『グレート・ブックス』の編纂者としても有名です。",
+                annotations: [
+                    { type: 'bracket-sub', startId: 53, endId: 60, label: 'M', color: COLORS.GRAY },
+                    { type: 'arrow', fromId: 53, toId: 51, color: COLORS.GRAY }, // in -> done
+                ],
+                highlightIds: range(53, 60),
+                jpHighlightIds: [15],
+                mainColor: COLORS.GRAY
+            }
+        ];
+
+        // --- Component Implementation ---
+        function EnglishParser() {
+            const [currentStep, setCurrentStep] = React.useState(0);
+            const [wordPositions, setWordPositions] = React.useState({});
+            const containerRef = React.useRef(null);
+            const canvasRef = React.useRef(null);
+            const wordRefs = React.useRef([]);
+
+            const calculatePositions = () => {
+                if (!containerRef.current) return;
+                const containerRect = containerRef.current.getBoundingClientRect();
+                const computedStyle = window.getComputedStyle(containerRef.current);
+                const borderLeft = parseFloat(computedStyle.borderLeftWidth) || 0;
+                const borderTop = parseFloat(computedStyle.borderTopWidth) || 0;
+                const positions = {};
+
+                WORDS.forEach((_, index) => {
+                    const el = wordRefs.current[index];
+                    if (el) {
+                        const rect = el.getBoundingClientRect();
+                        const relativeTop = rect.top - containerRect.top - borderTop;
+                        const relativeBottom = rect.bottom - containerRect.top - borderTop;
+                        const relativeLeft = rect.left - containerRect.left - borderLeft;
+                        const relativeRight = rect.right - containerRect.left - borderLeft;
+                        
+                        positions[index] = {
+                            x: relativeLeft, y: relativeTop, width: rect.width, height: rect.height,
+                            drawTop: relativeTop, drawBottom: relativeBottom, 
+                            left: relativeLeft, right: relativeRight - 4,
+                            centerX: (relativeLeft + (relativeRight - 4)) / 2
+                        };
+                    }
+                });
+                setWordPositions(positions);
+            };
+
+            React.useEffect(() => {
+                const init = async () => {
+                    await document.fonts.ready;
+                    calculatePositions();
+                    const loadingEl = document.getElementById('loading');
+                    if (loadingEl) loadingEl.style.display = 'none';
+                };
+                init();
+                const resizeObserver = new ResizeObserver(() => calculatePositions());
+                if (containerRef.current) resizeObserver.observe(containerRef.current);
+                window.addEventListener('resize', calculatePositions);
+                return () => {
+                    resizeObserver.disconnect();
+                    window.removeEventListener('resize', calculatePositions);
+                };
+            }, []);
+
+            React.useLayoutEffect(() => calculatePositions(), [currentStep]);
+            React.useEffect(() => drawCanvas(), [wordPositions, currentStep]);
+
+            const drawCanvas = () => {
+                const canvas = canvasRef.current;
+                const ctx = canvas?.getContext('2d');
+                if (!canvas || !ctx || Object.keys(wordPositions).length === 0) return;
+
+                const dpr = window.devicePixelRatio || 1;
+                const container = containerRef.current;
+                const width = container.clientWidth;
+                const height = container.clientHeight;
+                
+                canvas.width = width * dpr;
+                canvas.height = height * dpr;
+                canvas.style.width = `${width}px`;
+                canvas.style.height = `${height}px`;
+                ctx.scale(dpr, dpr);
+                ctx.clearRect(0, 0, width, height);
+                ctx.lineCap = 'round';
+                ctx.lineJoin = 'round';
+
+                (STEPS[currentStep].annotations || []).forEach(anim => {
+                    const pos = wordPositions[anim.targetId ?? anim.startId ?? 0];
+                    if (!pos) return;
+                    const drawColor = anim.color || '#000';
+                    ctx.strokeStyle = drawColor;
+                    ctx.fillStyle = drawColor;
+                    ctx.lineWidth = 2;
+
+                    if (anim.type === 'symbol') {
+                        const lineY = pos.drawBottom; 
+                        ctx.beginPath(); ctx.moveTo(pos.left, lineY); ctx.lineTo(pos.right, lineY); ctx.stroke();
+                        ctx.font = 'bold 14px "Inter", sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'top'; 
+                        ctx.fillText(anim.label || '', pos.centerX, lineY + 4);
+                    }
+                    if (anim.type === 'bracket-start') {
+                        const topY = pos.drawTop; const bottomY = pos.drawBottom; const x = pos.left - 4;
+                        ctx.beginPath(); ctx.moveTo(x + 5, topY); ctx.lineTo(x, topY); ctx.lineTo(x, bottomY); ctx.lineTo(x + 5, bottomY); ctx.stroke();
+                    }
+                    if (anim.type === 'bracket-full' || anim.type === 'bracket-sub') {
+                        const startP = wordPositions[anim.startId]; const endP = wordPositions[anim.endId];
+                        if (startP && endP) {
+                            const startTop = startP.drawTop; const startBottom = startP.drawBottom; const startX = startP.left - 4;
+                            const endTop = endP.drawTop; const endBottom = endP.drawBottom; const endX = endP.right + 4;
+                            ctx.beginPath(); ctx.moveTo(startX + 5, startTop); ctx.lineTo(startX, startTop); ctx.lineTo(startX, startBottom); ctx.lineTo(startX + 5, startBottom); ctx.stroke();
+                            ctx.beginPath(); ctx.moveTo(endX - 5, endTop); ctx.lineTo(endX, endTop); ctx.lineTo(endX, endBottom); ctx.lineTo(endX - 5, endBottom); ctx.stroke();
+                            if (anim.label) {
+                                ctx.font = '12px sans-serif'; ctx.textAlign = 'left'; ctx.textBaseline = 'bottom';
+                                ctx.fillText(anim.label, startX, startTop - 2);
+                            }
+                        }
+                    }
+                    if (anim.type === 'arrow') {
+                        const from = wordPositions[anim.fromId]; const to = wordPositions[anim.toId];
+                        if (from && to) {
+                            const startX = from.centerX; const startY = from.drawTop; const endX = to.centerX; const endY = to.drawTop; 
+                            const dist = Math.abs(endX - startX); const archHeight = Math.min(40, dist * 0.2 + 15); const cpY = Math.min(startY, endY) - archHeight;
+                            ctx.beginPath(); ctx.moveTo(startX, startY); ctx.quadraticCurveTo((startX + endX) / 2, cpY, endX, endY); ctx.stroke();
+                            const angle = Math.atan2(endY - cpY, endX - (startX + endX) / 2);
+                            const headLen = 8;
+                            ctx.beginPath(); ctx.moveTo(endX, endY);
+                            ctx.lineTo(endX - headLen * Math.cos(angle - Math.PI / 6), endY - headLen * Math.sin(angle - Math.PI / 6));
+                            ctx.lineTo(endX - headLen * Math.cos(angle + Math.PI / 6), endY - headLen * Math.sin(angle + Math.PI / 6));
+                            ctx.fill();
+                        }
+                    }
+                    if (anim.type === 'slash') {
+                        const p = wordPositions[anim.targetId];
+                        ctx.beginPath();
+                        const x = p.right + 6; const top = p.drawTop - 2; const bottom = p.drawBottom + 2;
+                        ctx.moveTo(x - 4, bottom); ctx.lineTo(x + 4, top); ctx.stroke();
+                    }
+                    if (anim.type === 'underline') {
+                        const start = wordPositions[anim.startId]; const end = wordPositions[anim.endId];
+                        if (start && end) {
+                            const lineY = Math.max(start.drawBottom, end.drawBottom) + 2;
+                            ctx.beginPath(); ctx.setLineDash([3, 3]); ctx.moveTo(start.left, lineY); ctx.lineTo(end.right, lineY); ctx.stroke(); ctx.setLineDash([]);
+                            if (anim.label) {
+                                ctx.font = '11px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'top'; ctx.fillStyle = '#64748b';
+                                ctx.fillText(anim.label, (start.left + end.right) / 2, lineY + 3);
+                            }
+                        }
+                    }
+                });
+            };
+
+            const nextStep = () => {
+                if (currentStep < STEPS.length - 1) {
+                    setCurrentStep(c => c + 1);
+                    const nextAnnotations = STEPS[currentStep + 1].annotations;
+                    if (nextAnnotations && nextAnnotations.length > 0) {
+                        const targetId = nextAnnotations[0].targetId ?? nextAnnotations[0].startId ?? 0;
+                        const el = wordRefs.current[targetId];
+                        if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    }
+                }
+            };
+            const prevStep = () => { if (currentStep > 0) setCurrentStep(c => c - 1); };
+
+            return (
+                <div className="max-w-4xl mx-auto p-6 min-h-screen pb-32">
+                    <div className="mb-6 border-b pb-4 flex justify-between items-center sticky top-0 bg-slate-50 z-20 pt-2 shadow-sm">
+                        <div>
+                            <h1 className="text-2xl font-bold text-slate-800">英文解釈ビジュアライザー</h1>
+                            <p className="text-slate-500 text-sm">Part 3: 読書の修正可能性</p>
+                        </div>
+                        <div className="flex gap-2">
+                            <div className="bg-white px-3 py-1 rounded border shadow-sm text-sm">Step {currentStep + 1} / {STEPS.length}</div>
+                        </div>
+                    </div>
+
+                    <div className="mb-2"><span className="text-xs font-bold text-slate-400 uppercase tracking-wider pl-1">English</span></div>
+                    <div ref={containerRef} className="relative bg-white rounded-xl shadow-lg border border-slate-200 p-8 mb-4 overflow-hidden">
+                        <canvas ref={canvasRef} className="absolute top-0 left-0 w-full h-full pointer-events-none z-10" />
+                        <div className="relative z-0 text-xl leading-loose font-serif text-slate-800 tracking-wide">
+                            {WORDS.map((word, i) => (
+                                <span key={i} ref={el => { wordRefs.current[i] = el; }} style={{ paddingRight: i === WORDS.length - 1 ? 0 : '0.3em' }}
+                                    className={`inline-block leading-tight transition-all duration-300 ${(STEPS[currentStep].highlightIds || []).includes(i) ? 'bg-yellow-300 text-slate-900 rounded-sm' : ''}`}
+                                >{word.text}</span>
+                            ))}
+                        </div>
+                    </div>
+                    
+                    <div className="mb-6 text-right">
+                        <p className="text-sm text-slate-500 font-medium italic">{SOURCE_CREDIT}</p>
+                    </div>
+
+                    <div className="mb-2"><span className="text-xs font-bold text-slate-400 uppercase tracking-wider pl-1">Japanese Translation</span></div>
+                    <div className="bg-slate-100 rounded-xl border border-slate-200 p-6 mb-6 text-lg leading-loose font-sans text-slate-700 shadow-inner">
+                        {JP_CHUNKS.map((chunk) => {
+                            const isActive = (STEPS[currentStep].jpHighlightIds || []).includes(chunk.id);
+                            const activeColor = STEPS[currentStep].mainColor || '#000';
+                            return (
+                                <span key={chunk.id} className={`transition-all duration-300 inline-block px-0.5 rounded-sm ${isActive ? 'bg-white shadow-sm font-bold' : 'opacity-60'}`}
+                                    style={{ color: isActive ? activeColor : undefined, borderBottom: isActive ? `2px solid ${activeColor}` : '2px solid transparent', transform: isActive ? 'scale(1.02)' : 'scale(1)' }}
+                                >{chunk.text}</span>
+                            );
+                        })}
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6 sticky bottom-6 z-20">
+                        <div className="md:col-span-1 flex flex-col gap-3">
+                            <div className="flex gap-2 justify-center md:justify-start">
+                                <button onClick={prevStep} disabled={currentStep === 0} className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 disabled:opacity-50 transition-colors shadow-sm"><ChevronLeft size={18} /> 前へ</button>
+                                <button onClick={nextStep} disabled={currentStep === STEPS.length - 1} className="flex items-center gap-2 px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors shadow-md">次へ <ChevronRight size={18} /></button>
+                            </div>
+                            <button onClick={() => setCurrentStep(0)} className="flex items-center gap-2 text-slate-500 text-sm justify-center md:justify-start hover:text-slate-800 bg-white/80 p-1 rounded"><RefreshCw size={14} /> 最初からやり直す</button>
+                        </div>
+                        <div className="md:col-span-2 bg-slate-800 text-white p-6 rounded-lg shadow-lg transition-all duration-300 opacity-95 border-l-4" style={{ borderLeftColor: STEPS[currentStep].mainColor || '#3b82f6' }}>
+                            <h3 className="text-lg font-bold mb-2 flex items-center gap-2" style={{ color: STEPS[currentStep].mainColor ? '#fff' : '#93c5fd' }}>
+                                <span className="px-2 py-0.5 rounded text-sm font-bold text-slate-900" style={{ backgroundColor: STEPS[currentStep].mainColor || '#fff' }}>Step {currentStep + 1}</span>
+                                {STEPS[currentStep].title}
+                            </h3>
+                            <p className="text-slate-300 leading-relaxed">{STEPS[currentStep].description}</p>
+                        </div>
+                    </div>
+                </div>
+            );
+        }
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<EnglishParser />);
+    </script>
+</body>
+</html>
