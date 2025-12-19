@@ -1,0 +1,441 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>The Mirror Test - Paragraph 1 Structure Visualizer</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&family=Noto+Serif+JP:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        .font-serif { font-family: 'Times New Roman', Times, serif; }
+        .font-sans { font-family: 'Inter', 'Noto Sans JP', sans-serif; }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-900">
+    <div id="root"></div>
+    <script type="text/babel">
+        // ==========================================
+        // /* データ定義セクション */
+        // ==========================================
+        
+        const SENTENCES = [
+            "Humans and animals are different in many ways.",
+            "Some say only humans can have a language and a culture.",
+            "Among these discussions, one idea that is often discussed is whether only humans can recognize or tell the difference between themselves and others.",
+            "The mirror test is used to judge this.",
+            "It is done by putting a mark on an animal’s body.",
+            "The mark is put in a place where the animal cannot see without the help of a mirror.",
+            "If the animal tries to remove the mark on its body, it shows that the animal recognizes itself."
+        ];
+
+        const RAW_SENTENCE = SENTENCES.join(' ');
+        const SOURCE_CREDIT = "出典：2025年度 第2回 英検2級 大問3B";
+
+        // 単語IDのマッピング（句読点付きで分割）
+        const WORDS = RAW_SENTENCE.split(' ').map((word, index) => ({
+            id: index,
+            text: word
+        }));
+
+        const JP_CHUNKS = [
+            { id: 0, text: "人間と動物は多くの点で異なっています。" },
+            { id: 1, text: "人間だけが言語や文化を持てると言う人もいます。" },
+            { id: 2, text: "こうした議論の中で、しばしば議論される一つの考えは、人間だけが自分自身と他者との違いを認識したり区別したりできるのかどうか、ということです。" },
+            { id: 3, text: "ミラーテスト（鏡像認知テスト）は、これを判断するために使われます。" },
+            { id: 4, text: "それは、動物の体に印をつけることによって行われます。" },
+            { id: 5, text: "印は、鏡の助けなしには動物が見ることのできない場所に付けられます。" },
+            { id: 6, text: "もしその動物が自分の体の印を取り除こうとしたなら、それはその動物が自分自身を認識していることを示しています。" }
+        ];
+
+        const COLORS = {
+            S: '#ef4444', V: '#ef4444', O: '#ef4444', C: '#ef4444',
+            REL: '#3b82f6', MOD: '#10b981', ETC: '#f97316', GRAY: '#64748b',
+            CONJ: '#8b5cf6'
+        };
+
+        const range = (start, end) => Array.from({ length: end - start + 1 }, (_, i) => start + i);
+
+        // --- インデックス計算メモ ---
+        // S1: 0-7 (Humans...ways.)
+        // S2: 8-18 (Some...culture.) "say" is 9.
+        // S3: 19-41 (Among...others.) "idea" is 23, "that" is 24, "discussed" is 27, "is" is 28. "whether" is 29.
+        // S4: 42-49 (The...this.)
+        // S5: 50-60 (It...body.)
+        // S6: 61-78 (The...mirror.) "place" is 67, "where" is 68.
+        // S7: 79-96 (If...itself.) "If" is 79, "shows" is 91, "that" is 92.
+
+        const STEPS = [
+            // Sentence 1
+            {
+                title: "1文目：基本構造の確認",
+                description: "まずはシンプルな第2文型(SVC)の文です。「人間と動物」が主語、「異なっている」が補語です。",
+                annotations: [
+                    { type: 'underline', startId: 0, endId: 2, label: 'S', color: COLORS.S },
+                    { type: 'underline', startId: 3, endId: 3, label: 'V', color: COLORS.V },
+                    { type: 'underline', startId: 4, endId: 4, label: 'C', color: COLORS.C },
+                    { type: 'bracket-sub', startId: 5, endId: 7, label: 'M (〜の点で)', color: COLORS.MOD },
+                    { type: 'arrow', fromId: 5, toId: 4, color: COLORS.MOD }
+                ],
+                highlightIds: range(0, 7),
+                jpHighlightIds: [0],
+                mainColor: COLORS.S
+            },
+            // Sentence 2
+            {
+                title: "2文目：接続詞の省略",
+                description: "Some say (that)... の形です。sayの後ろに接続詞thatが省略されており、目的語となる節を導いています。",
+                annotations: [
+                    { type: 'underline', startId: 8, endId: 8, label: 'S', color: COLORS.S },
+                    { type: 'underline', startId: 9, endId: 9, label: 'V', color: COLORS.V },
+                    { type: 'insert-text', targetId: 10, text: 'that', color: COLORS.CONJ }, // thatの補完
+                    { type: 'bracket-full', startId: 10, endId: 18, label: 'O (名詞節)', color: COLORS.S }, // that節全体
+                    { type: 'underline', startId: 10, endId: 11, label: 'S’', color: COLORS.S },
+                    { type: 'underline', startId: 12, endId: 13, label: 'V’', color: COLORS.V },
+                    { type: 'underline', startId: 14, endId: 18, label: 'O’', color: COLORS.O },
+                ],
+                highlightIds: range(8, 18),
+                jpHighlightIds: [1],
+                mainColor: COLORS.V
+            },
+            // Sentence 3 (Complex)
+            {
+                title: "3文目：主語の修飾関係",
+                description: "主語が長くなっています。関係代名詞thatが導く節が、先行詞 idea を修飾しています。",
+                annotations: [
+                    { type: 'bracket-sub', startId: 19, endId: 21, label: 'M', color: COLORS.MOD },
+                    { type: 'underline', startId: 22, endId: 23, label: 'S', color: COLORS.S }, // one idea
+                    { type: 'bracket-sub', startId: 24, endId: 27, label: '関係詞節', color: COLORS.REL }, // that is often discussed
+                    { type: 'arrow', fromId: 24, toId: 23, color: COLORS.REL },
+                    { type: 'underline', startId: 28, endId: 28, label: 'V', color: COLORS.V }, // is
+                ],
+                highlightIds: range(19, 28), // 文の途中までフォーカス
+                jpHighlightIds: [2],
+                mainColor: COLORS.REL
+            },
+            {
+                title: "3文目：whether節（〜かどうか）",
+                description: "補語(C)の位置に whether 節が来ています。「人間だけが〜できるかどうか」という名詞節を作ります。",
+                annotations: [
+                    { type: 'underline', startId: 22, endId: 23, label: 'S', color: COLORS.S },
+                    { type: 'underline', startId: 28, endId: 28, label: 'V', color: COLORS.V },
+                    { type: 'bracket-full', startId: 29, endId: 41, label: 'C (whether節)', color: COLORS.C },
+                    { type: 'underline', startId: 30, endId: 31, label: 'S’', color: COLORS.S },
+                    { type: 'underline', startId: 32, endId: 35, label: 'V’', color: COLORS.V }, // can recognize or tell
+                    { type: 'underline', startId: 36, endId: 41, label: 'O’', color: COLORS.O },
+                ],
+                highlightIds: range(19, 41),
+                jpHighlightIds: [2],
+                mainColor: COLORS.CONJ
+            },
+            // Sentence 4
+            {
+                title: "4文目：受動態と不定詞",
+                description: "be used to V（〜するために使われる）の形。to judge this は目的を表す不定詞の副詞的用法です。",
+                annotations: [
+                    { type: 'underline', startId: 42, endId: 44, label: 'S', color: COLORS.S },
+                    { type: 'underline', startId: 45, endId: 46, label: 'V (受動態)', color: COLORS.V },
+                    { type: 'bracket-sub', startId: 47, endId: 49, label: 'M (目的)', color: COLORS.MOD },
+                    { type: 'arrow', fromId: 47, toId: 46, color: COLORS.MOD }
+                ],
+                highlightIds: range(42, 49),
+                jpHighlightIds: [3],
+                mainColor: COLORS.V
+            },
+            // Sentence 5
+            {
+                title: "5文目：手段を表す by",
+                description: "by putting ...（〜することによって）は手段を表す副詞句です。putting は動名詞。",
+                annotations: [
+                    { type: 'underline', startId: 50, endId: 50, label: 'S', color: COLORS.S },
+                    { type: 'underline', startId: 51, endId: 52, label: 'V (受動態)', color: COLORS.V },
+                    { type: 'bracket-sub', startId: 53, endId: 60, label: 'M (手段)', color: COLORS.MOD },
+                    { type: 'arrow', fromId: 53, toId: 52, color: COLORS.MOD },
+                ],
+                highlightIds: range(50, 60),
+                jpHighlightIds: [4],
+                mainColor: COLORS.MOD
+            },
+            // Sentence 6
+            {
+                title: "6文目：関係副詞 where",
+                description: "place where ... 「〜する場所」。where節の中は「動物が鏡の助けなしには見ることができない（場所）」という構造です。",
+                annotations: [
+                    { type: 'underline', startId: 61, endId: 62, label: 'S', color: COLORS.S },
+                    { type: 'underline', startId: 63, endId: 64, label: 'V', color: COLORS.V },
+                    { type: 'bracket-sub', startId: 65, endId: 78, label: 'M', color: COLORS.MOD },
+                    { type: 'arrow', fromId: 65, toId: 64, color: COLORS.MOD },
+                    // 関係副詞内部
+                    { type: 'bracket-sub', startId: 68, endId: 78, label: '関係副詞節', color: COLORS.REL },
+                    { type: 'arrow', fromId: 68, toId: 67, color: COLORS.REL }, // where -> place
+                    { type: 'underline', startId: 69, endId: 70, label: 'S’', color: COLORS.S },
+                    { type: 'underline', startId: 71, endId: 72, label: 'V’', color: COLORS.V },
+                ],
+                highlightIds: range(61, 78),
+                jpHighlightIds: [5],
+                mainColor: COLORS.REL
+            },
+            // Sentence 7
+            {
+                title: "7文目：If節とthat節",
+                description: "前半は条件を表すIf節。主節の it shows that... では、that節が「動物が自分自身を認識していること」という目的語になっています。",
+                annotations: [
+                    { type: 'bracket-sub', startId: 79, endId: 89, label: 'M (条件節)', color: COLORS.MOD }, // If...body,
+                    { type: 'underline', startId: 90, endId: 90, label: 'S', color: COLORS.S }, // it
+                    { type: 'underline', startId: 91, endId: 91, label: 'V', color: COLORS.V }, // shows
+                    { type: 'bracket-full', startId: 92, endId: 96, label: 'O (名詞節)', color: COLORS.O }, // that...itself.
+                    { type: 'underline', startId: 93, endId: 94, label: 'S’', color: COLORS.S },
+                    { type: 'underline', startId: 95, endId: 95, label: 'V’', color: COLORS.V },
+                    { type: 'underline', startId: 96, endId: 96, label: 'O’', color: COLORS.O },
+                ],
+                highlightIds: range(79, 96),
+                jpHighlightIds: [6],
+                mainColor: COLORS.CONJ
+            }
+        ];
+
+        // ==========================================
+        // /* ロジックセクション (テンプレート準拠) */
+        // ==========================================
+        
+        function EnglishParser() {
+            const [currentStep, setCurrentStep] = React.useState(0);
+            const [wordPositions, setWordPositions] = React.useState({});
+            const containerRef = React.useRef(null);
+            const canvasRef = React.useRef(null);
+            const wordRefs = React.useRef([]);
+
+            const calculatePositions = () => {
+                if (!containerRef.current) return;
+                const containerRect = containerRef.current.getBoundingClientRect();
+                const computedStyle = window.getComputedStyle(containerRef.current);
+                const borderLeft = parseFloat(computedStyle.borderLeftWidth) || 0;
+                const borderTop = parseFloat(computedStyle.borderTopWidth) || 0;
+                const positions = {};
+
+                WORDS.forEach((_, index) => {
+                    const el = wordRefs.current[index];
+                    if (el) {
+                        const rect = el.getBoundingClientRect();
+                        positions[index] = {
+                            x: rect.left - containerRect.left - borderLeft,
+                            y: rect.top - containerRect.top - borderTop,
+                            width: rect.width, height: rect.height,
+                            drawTop: rect.top - containerRect.top - borderTop,
+                            drawBottom: rect.bottom - containerRect.top - borderTop,
+                            left: rect.left - containerRect.left - borderLeft,
+                            right: rect.right - containerRect.left - borderLeft - 3,
+                            centerX: (rect.left + rect.right - 2 * (containerRect.left + borderLeft)) / 2
+                        };
+                    }
+                });
+                setWordPositions(positions);
+            };
+
+            React.useEffect(() => {
+                calculatePositions();
+                const observer = new ResizeObserver(calculatePositions);
+                if (containerRef.current) observer.observe(containerRef.current);
+                document.fonts.ready.then(calculatePositions);
+                window.addEventListener('resize', calculatePositions);
+                return () => { observer.disconnect(); window.removeEventListener('resize', calculatePositions); };
+            }, []);
+
+            React.useLayoutEffect(calculatePositions, [currentStep]);
+            React.useEffect(() => drawCanvas(), [wordPositions, currentStep]);
+
+            const drawCanvas = () => {
+                const canvas = canvasRef.current;
+                const ctx = canvas?.getContext('2d');
+                if (!canvas || !ctx || Object.keys(wordPositions).length === 0) return;
+
+                const dpr = window.devicePixelRatio || 1;
+                const container = containerRef.current;
+                canvas.width = container.clientWidth * dpr;
+                canvas.height = container.clientHeight * dpr;
+                canvas.style.width = `${container.clientWidth}px`;
+                canvas.style.height = `${container.clientHeight}px`;
+                ctx.scale(dpr, dpr);
+                ctx.clearRect(0, 0, container.clientWidth, container.clientHeight);
+                ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+
+                const annotations = STEPS[currentStep].annotations || [];
+                annotations.forEach(anim => {
+                    const pos = wordPositions[anim.targetId ?? anim.startId ?? 0];
+                    if (!pos) return;
+                    
+                    ctx.strokeStyle = anim.color || '#000';
+                    ctx.fillStyle = anim.color || '#000';
+                    ctx.lineWidth = 2;
+
+                    // 挿入テキスト
+                    if (anim.type === 'insert-text') {
+                        const x = pos.left - 5;
+                        const y = pos.drawTop - 10; 
+                        ctx.font = 'bold 12px "Inter"';
+                        ctx.textAlign = 'right';
+                        ctx.fillStyle = anim.color || '#000'; 
+                        ctx.fillText(anim.text, x + 10, y + 10);
+                        ctx.beginPath();
+                        ctx.moveTo(pos.left - 2, pos.drawBottom);
+                        ctx.lineTo(pos.left + 2, pos.drawBottom);
+                        ctx.lineTo(pos.left, pos.drawTop + 2); 
+                        ctx.strokeStyle = anim.color || '#000';
+                        ctx.stroke();
+                    }
+                    // 記号 (S, V, O, C など)
+                    else if (anim.type === 'symbol') {
+                        const y = pos.drawBottom + 2;
+                        ctx.beginPath(); ctx.moveTo(pos.left, y); ctx.lineTo(pos.right, y); ctx.stroke();
+                        ctx.font = 'bold 14px "Inter"'; ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+                        ctx.fillStyle = anim.color || '#000';
+                        ctx.fillText(anim.label || '', pos.centerX, y + 2);
+                    } 
+                    // 下線 (行またぎ対応)
+                    else if (anim.type === 'underline') {
+                        const lines = {};
+                        for (let i = anim.startId; i <= anim.endId; i++) {
+                            const p = wordPositions[i];
+                            if (!p) continue;
+                            const yKey = Math.round(p.drawBottom);
+                            if (!lines[yKey]) lines[yKey] = { left: p.left, right: p.right, bottom: p.drawBottom };
+                            else {
+                                lines[yKey].left = Math.min(lines[yKey].left, p.left);
+                                lines[yKey].right = Math.max(lines[yKey].right, p.right);
+                                lines[yKey].bottom = Math.max(lines[yKey].bottom, p.drawBottom);
+                            }
+                        }
+                        Object.values(lines).forEach((line) => {
+                            const y = line.bottom + 2; 
+                            ctx.beginPath(); 
+                            if(anim.label && (anim.label.includes('節') || anim.label.includes('受動') || anim.label.includes('副詞'))) ctx.setLineDash([2, 2]);
+                            ctx.moveTo(line.left, y); ctx.lineTo(line.right, y); ctx.stroke();
+                        });
+                        ctx.setLineDash([]);
+                        if (anim.label) {
+                            const endPos = wordPositions[anim.endId];
+                            if(endPos) {
+                                ctx.font = '10px "Inter"'; ctx.textAlign = 'left'; ctx.textBaseline = 'top';
+                                ctx.fillStyle = anim.color || '#000';
+                                ctx.fillText(anim.label, endPos.right + 2, endPos.drawBottom); 
+                            }
+                        }
+                    } 
+                    // 矢印
+                    else if (anim.type === 'arrow') {
+                        const from = wordPositions[anim.fromId];
+                        const to = wordPositions[anim.toId];
+                        if (from && to) {
+                            const sx = from.centerX, sy = from.drawTop, ex = to.centerX, ey = to.drawTop;
+                            const cpY = Math.min(sy, ey) - 15;
+                            ctx.beginPath(); ctx.moveTo(sx, sy - 2); ctx.quadraticCurveTo((sx+ex)/2, cpY, ex, ey - 2); ctx.stroke();
+                            const angle = Math.atan2(ey - 2 - cpY, ex - (sx+ex)/2);
+                            ctx.beginPath(); ctx.moveTo(ex, ey - 2);
+                            ctx.lineTo(ex - 5 * Math.cos(angle - Math.PI/6), ey - 2 - 5 * Math.sin(angle - Math.PI/6));
+                            ctx.lineTo(ex - 5 * Math.cos(angle + Math.PI/6), ey - 2 - 5 * Math.sin(angle + Math.PI/6));
+                            ctx.fillStyle = anim.color || '#000';
+                            ctx.fill();
+                        }
+                    } 
+                    // カッコ (行またぎ対応)
+                    else if (anim.type === 'bracket-start' || anim.type === 'bracket-full' || anim.type === 'bracket-sub') {
+                        const endPos = wordPositions[anim.endId] || pos;
+                        const isMultiLine = Math.abs(pos.drawTop - endPos.drawTop) > 20;
+
+                        if (isMultiLine) {
+                            // 複数行の場合
+                            const top1 = pos.drawTop - 2;
+                            const bottom1 = pos.drawBottom + 2;
+                            const left1 = pos.left - 3;
+                            ctx.beginPath();
+                            ctx.moveTo(left1 + 4, top1); ctx.lineTo(left1, top1); ctx.lineTo(left1, bottom1); ctx.lineTo(left1 + 4, bottom1);
+                            ctx.stroke();
+
+                            const top2 = endPos.drawTop - 2;
+                            const bottom2 = endPos.drawBottom + 2;
+                            const right2 = endPos.right + 3;
+                            if (anim.type !== 'bracket-start') {
+                                ctx.beginPath();
+                                ctx.moveTo(right2 - 4, top2); ctx.lineTo(right2, top2); ctx.lineTo(right2, bottom2); ctx.lineTo(right2 - 4, bottom2);
+                                ctx.stroke();
+                            }
+                        } else {
+                            // 単一行の場合
+                            const top = Math.min(pos.drawTop, endPos.drawTop) - 2;
+                            const bottom = Math.max(pos.drawBottom, endPos.drawBottom) + 2;
+                            const left = pos.left - 3;
+                            const right = endPos.right + 3;
+                            ctx.beginPath();
+                            ctx.moveTo(left + 4, top); ctx.lineTo(left, top); ctx.lineTo(left, bottom); ctx.lineTo(left + 4, bottom);
+                            ctx.stroke();
+                            if (anim.type !== 'bracket-start') {
+                                ctx.beginPath();
+                                ctx.moveTo(right - 4, top); ctx.lineTo(right, top); ctx.lineTo(right, bottom); ctx.lineTo(right - 4, bottom);
+                                ctx.stroke();
+                            }
+                        }
+                        if (anim.label) {
+                             ctx.font = '11px "Inter"'; ctx.textAlign = 'left'; ctx.fillStyle = anim.color || '#000';
+                             ctx.fillText(anim.label, pos.left - 3, pos.drawTop - 12);
+                        }
+                    }
+                });
+            };
+
+            const nextStep = () => { if (currentStep < STEPS.length - 1) setCurrentStep(c => c + 1); };
+            const prevStep = () => { if (currentStep > 0) setCurrentStep(c => c - 1); };
+
+            const ChevronRight = () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="9 18 15 12 9 6"></polyline></svg>;
+            const ChevronLeft = () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="15 18 9 12 15 6"></polyline></svg>;
+            const RefreshCw = () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M23 4v6h-6"></path><path d="M1 20v-6h6"></path><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></svg>;
+
+            return (
+                <div className="max-w-4xl mx-auto p-4 md:p-6 min-h-screen pb-32">
+                    <div className="mb-6 border-b pb-4 flex justify-between items-center sticky top-0 bg-slate-50 z-20 pt-2">
+                        <div>
+                            <h1 className="text-xl md:text-2xl font-bold text-slate-800">The Mirror Test (Paragraph 1)</h1>
+                            <p className="text-slate-500 text-xs md:text-sm">{SOURCE_CREDIT}</p>
+                        </div>
+                        <div className="bg-white px-3 py-1 rounded border shadow-sm text-sm font-mono">{currentStep + 1} / {STEPS.length}</div>
+                    </div>
+                    <div ref={containerRef} className="relative bg-white rounded-xl shadow-lg border border-slate-200 p-6 md:p-8 mb-4 overflow-hidden">
+                        <canvas ref={canvasRef} className="absolute top-0 left-0 w-full h-full pointer-events-none z-10" />
+                        <div className="relative z-0 text-lg md:text-xl font-serif text-slate-800 tracking-wide" style={{ lineHeight: '1.8' }}>
+                            {WORDS.map((word, i) => (
+                                <span key={i} ref={el => { wordRefs.current[i] = el; }} className={`inline-block transition-colors duration-300 ${(STEPS[currentStep].highlightIds || []).includes(i) ? 'bg-yellow-200/70 rounded-sm' : ''}`} style={{ paddingRight: '0.3em', lineHeight: '1.35' }}>{word.text}</span>
+                            ))}
+                        </div>
+                    </div>
+                    <div className="mb-2"><span className="text-xs font-bold text-slate-400 uppercase pl-1">Translation</span></div>
+                    <div className="bg-slate-100 rounded-xl border border-slate-200 p-5 mb-6 text-base md:text-lg leading-loose font-sans text-slate-700">
+                        {JP_CHUNKS.map((chunk) => {
+                            const isActive = (STEPS[currentStep].jpHighlightIds || []).includes(chunk.id);
+                            return (
+                                <span key={chunk.id} className={`transition-all duration-300 inline-block px-1 rounded-sm ${isActive ? 'bg-white shadow-sm font-bold text-slate-900' : 'opacity-50'}`} style={{ borderBottom: isActive ? `2px solid ${STEPS[currentStep].mainColor}` : '2px solid transparent' }}>{chunk.text}</span>
+                            );
+                        })}
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sticky bottom-4 z-30">
+                        <div className="md:col-span-1 flex flex-row md:flex-col gap-2 justify-between md:justify-start">
+                            <div className="flex gap-2 w-full">
+                                <button onClick={prevStep} disabled={currentStep === 0} className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 disabled:opacity-50 shadow-sm"><ChevronLeft/> Prev</button>
+                                <button onClick={nextStep} disabled={currentStep === STEPS.length - 1} className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 shadow-md">Next <ChevronRight/></button>
+                            </div>
+                            <button onClick={() => setCurrentStep(0)} className="hidden md:flex items-center gap-2 text-slate-500 text-sm p-2 hover:bg-slate-100 rounded self-start"><RefreshCw/> Reset</button>
+                        </div>
+                        <div className="md:col-span-2 bg-slate-800 text-white p-5 rounded-lg shadow-xl border-l-4" style={{ borderLeftColor: STEPS[currentStep].mainColor || '#3b82f6' }}>
+                            <h3 className="font-bold mb-1 text-blue-200">{STEPS[currentStep].title}</h3>
+                            <p className="text-slate-300 text-sm md:text-base">{STEPS[currentStep].description}</p>
+                        </div>
+                    </div>
+                </div>
+            );
+        }
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<EnglishParser />);
+    </script>
+</body>
+</html>

@@ -1,0 +1,423 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>英検準2級 構文解釈 (2025-2 Salt) - Para 3</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&family=Noto+Serif+JP:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        .font-serif { font-family: 'Times New Roman', Times, serif; }
+        .font-sans { font-family: 'Inter', 'Noto Sans JP', sans-serif; }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-900">
+    <div id="root"></div>
+    <script type="text/babel">
+        // ==========================================
+        // /* データ定義セクション */
+        // ==========================================
+        
+        const SENTENCES = [
+            "History shows that salt was often linked to money and the economy.",
+            "For example, according to some records, salt was so valuable that it was used as money.",
+            "In Europe, salt helped some cities grow their economies.",
+            "Even new cities and roads were built to produce and deliver salt.",
+            "Moreover, a lot of wars happened over salt around the world.",
+            "It shows how much salt meant to people throughout history."
+        ];
+
+        const RAW_SENTENCE = SENTENCES.join(' ');
+        const SOURCE_CREDIT = "出典：英検準2級 2025年度 第2回 大問4B (本会場)";
+
+        // 単語分割
+        const WORDS = RAW_SENTENCE.split(' ').map((word, index) => ({
+            id: index,
+            text: word
+        }));
+
+        // 日本語訳
+        const JP_CHUNKS = [
+            { id: 0, text: "歴史は、塩がしばしば金や経済と結びついていたことを示しています。" },
+            { id: 1, text: "例えば、いくつかの記録によると、" },
+            { id: 2, text: "塩は非常に高価だったので、" },
+            { id: 3, text: "お金として使われていました。" },
+            { id: 4, text: "ヨーロッパでは、" },
+            { id: 5, text: "塩はいくつかの都市が経済を成長させるのを助けました。" },
+            { id: 6, text: "新しい都市や道路でさえ、" },
+            { id: 7, text: "塩を生産し配送するために建設されました。" },
+            { id: 8, text: "さらに、多くの戦争が起こりました、" },
+            { id: 9, text: "世界中で塩を巡って。" },
+            { id: 10, text: "それは、歴史を通じて塩が人々にどれほど重要であったかを示しています。" }
+        ];
+
+        const COLORS = {
+            S: '#ef4444', V: '#ef4444', O: '#ef4444', C: '#ef4444',
+            REL: '#3b82f6', MOD: '#10b981', ETC: '#f97316', GRAY: '#64748b',
+            CONJ: '#8b5cf6'
+        };
+
+        const range = (start, end) => Array.from({ length: end - start + 1 }, (_, i) => start + i);
+
+        /* Index Mapping:
+        0-11: History shows that salt was often linked to money and the economy.
+             (History:0, shows:1, that:2, economy.:11)
+        12-27: For example, according to some records, salt was so valuable that it was used as money.
+             (For:12, records,:17, salt:18, that:22, money.:27)
+        28-36: In Europe, salt helped some cities grow their economies.
+             (In:28, Europe,:29, salt:30, grow:34, economies.:36)
+        37-48: Even new cities and roads were built to produce and deliver salt.
+             (Even:37, built:43, salt.:48)
+        49-59: Moreover, a lot of wars happened over salt around the world.
+             (Moreover,:49, wars:53, happened:54, world.:59)
+        60-69: It shows how much salt meant to people throughout history.
+             (It:60, shows:61, how:62, history.:69)
+        */
+
+        const STEPS = [
+            {
+                title: "1文目: 接続詞thatがつくる名詞節",
+                description: "showsの目的語としてthat節が使われています。節内は受動態(was linked)です。",
+                annotations: [
+                    { type: 'symbol', label: 'S', startId: 0, color: COLORS.S },
+                    { type: 'symbol', label: 'V', startId: 1, color: COLORS.V },
+                    { type: 'bracket-start', label: '名詞節(O)', startId: 2, endId: 11, color: COLORS.O },
+                    { type: 'symbol', label: "S'", startId: 3, color: COLORS.S },
+                    { type: 'underline', label: "V'(受動態)", startId: 4, endId: 6, color: COLORS.V },
+                    { type: 'bracket-sub', label: '副詞句', startId: 7, endId: 11, color: COLORS.MOD }
+                ],
+                highlightIds: range(0, 11),
+                jpHighlightIds: [0],
+                mainColor: COLORS.O
+            },
+            {
+                title: "2文目: so...that...構文 (程度・結果)",
+                description: "「非常に～なので…だ」という重要構文です。For example等は文修飾の副詞要素です。",
+                annotations: [
+                    { type: 'bracket-sub', label: '副詞句', startId: 12, endId: 13, color: COLORS.GRAY },
+                    { type: 'bracket-sub', label: '副詞句', startId: 14, endId: 17, color: COLORS.GRAY },
+                    { type: 'symbol', label: 'S', startId: 18, color: COLORS.S },
+                    { type: 'symbol', label: 'V', startId: 19, color: COLORS.V },
+                    { type: 'symbol', label: 'C', startId: 21, color: COLORS.C },
+                    { type: 'arrow', fromId: 20, toId: 21, color: COLORS.CONJ },
+                    { type: 'bracket-start', label: '程度・結果', startId: 22, endId: 27, color: COLORS.CONJ }
+                ],
+                highlightIds: range(12, 27),
+                jpHighlightIds: [1, 2, 3],
+                mainColor: COLORS.CONJ
+            },
+            {
+                title: "3文目: help O do (原形不定詞)",
+                description: "「Oが～するのを助ける」という形です。growは原形不定詞として使われています。",
+                annotations: [
+                    { type: 'bracket-sub', label: '副詞句', startId: 28, endId: 29, color: COLORS.MOD },
+                    { type: 'symbol', label: 'S', startId: 30, color: COLORS.S },
+                    { type: 'symbol', label: 'V', startId: 31, color: COLORS.V },
+                    { type: 'symbol', label: 'O', startId: 32, endId: 33, color: COLORS.O },
+                    { type: 'underline', label: 'C(原形)', startId: 34, endId: 34, color: COLORS.C },
+                    { type: 'arrow', fromId: 34, toId: 36, color: COLORS.GRAY }
+                ],
+                highlightIds: range(28, 36),
+                jpHighlightIds: [4, 5],
+                mainColor: COLORS.V
+            },
+            {
+                title: "4文目: 受動態と目的の不定詞",
+                description: "受動態(were built)の後に、目的を表す不定詞(to produce...)が続いています。",
+                annotations: [
+                    { type: 'symbol', label: 'S', startId: 37, endId: 41, color: COLORS.S },
+                    { type: 'underline', label: 'V(受動態)', startId: 42, endId: 43, color: COLORS.V },
+                    { type: 'bracket-sub', label: '目的', startId: 44, endId: 48, color: COLORS.MOD }
+                ],
+                highlightIds: range(37, 48),
+                jpHighlightIds: [6, 7],
+                mainColor: COLORS.MOD
+            },
+            {
+                title: "5文目: 前置詞句による修飾",
+                description: "「over salt」は「塩を巡って」という意味。「around the world」は場所を表します。",
+                annotations: [
+                    { type: 'insert-text', text: '接続副詞', targetId: 49, color: COLORS.GRAY },
+                    { type: 'symbol', label: 'S', startId: 50, endId: 53, color: COLORS.S },
+                    { type: 'symbol', label: 'V', startId: 54, color: COLORS.V },
+                    { type: 'bracket-sub', label: '関連', startId: 55, endId: 56, color: COLORS.MOD },
+                    { type: 'bracket-sub', label: '場所', startId: 57, endId: 59, color: COLORS.MOD }
+                ],
+                highlightIds: range(49, 59),
+                jpHighlightIds: [8, 9],
+                mainColor: COLORS.S
+            },
+            {
+                title: "6文目: 間接疑問文 (how much...)",
+                description: "showsの目的語が「how much」で始まる間接疑問文です。語順は「疑問詞+S+V」となります。",
+                annotations: [
+                    { type: 'symbol', label: 'S', startId: 60, color: COLORS.S },
+                    { type: 'symbol', label: 'V', startId: 61, color: COLORS.V },
+                    { type: 'bracket-start', label: '名詞節(O)', startId: 62, endId: 69, color: COLORS.O },
+                    { type: 'insert-text', text: '疑問詞', targetId: 62, color: COLORS.GRAY },
+                    { type: 'symbol', label: "S'", startId: 64, color: COLORS.S },
+                    { type: 'symbol', label: "V'", startId: 65, color: COLORS.V }
+                ],
+                highlightIds: range(60, 69),
+                jpHighlightIds: [10],
+                mainColor: COLORS.O
+            }
+        ];
+
+        // ==========================================
+        // /* ロジックセクション */
+        // ==========================================
+        
+        function EnglishParser() {
+            const [currentStep, setCurrentStep] = React.useState(0);
+            const [wordPositions, setWordPositions] = React.useState({});
+            const containerRef = React.useRef(null);
+            const canvasRef = React.useRef(null);
+            const wordRefs = React.useRef([]);
+
+            const calculatePositions = () => {
+                if (!containerRef.current) return;
+                const containerRect = containerRef.current.getBoundingClientRect();
+                const computedStyle = window.getComputedStyle(containerRef.current);
+                const borderLeft = parseFloat(computedStyle.borderLeftWidth) || 0;
+                const borderTop = parseFloat(computedStyle.borderTopWidth) || 0;
+                const positions = {};
+
+                WORDS.forEach((_, index) => {
+                    const el = wordRefs.current[index];
+                    if (el) {
+                        const rect = el.getBoundingClientRect();
+                        positions[index] = {
+                            x: rect.left - containerRect.left - borderLeft,
+                            y: rect.top - containerRect.top - borderTop,
+                            width: rect.width, height: rect.height,
+                            drawTop: rect.top - containerRect.top - borderTop,
+                            drawBottom: rect.bottom - containerRect.top - borderTop,
+                            left: rect.left - containerRect.left - borderLeft,
+                            right: rect.right - containerRect.left - borderLeft - 3,
+                            centerX: (rect.left + rect.right - 2 * (containerRect.left + borderLeft)) / 2
+                        };
+                    }
+                });
+                setWordPositions(positions);
+            };
+
+            React.useEffect(() => {
+                calculatePositions();
+                const observer = new ResizeObserver(calculatePositions);
+                if (containerRef.current) observer.observe(containerRef.current);
+                document.fonts.ready.then(calculatePositions);
+                window.addEventListener('resize', calculatePositions);
+                return () => { observer.disconnect(); window.removeEventListener('resize', calculatePositions); };
+            }, []);
+
+            React.useLayoutEffect(calculatePositions, [currentStep]);
+            React.useEffect(() => drawCanvas(), [wordPositions, currentStep]);
+
+            const drawCanvas = () => {
+                const canvas = canvasRef.current;
+                const ctx = canvas?.getContext('2d');
+                if (!canvas || !ctx || Object.keys(wordPositions).length === 0) return;
+
+                const dpr = window.devicePixelRatio || 1;
+                const container = containerRef.current;
+                canvas.width = container.clientWidth * dpr;
+                canvas.height = container.clientHeight * dpr;
+                canvas.style.width = `${container.clientWidth}px`;
+                canvas.style.height = `${container.clientHeight}px`;
+                ctx.scale(dpr, dpr);
+                ctx.clearRect(0, 0, container.clientWidth, container.clientHeight);
+                ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+
+                const annotations = STEPS[currentStep].annotations || [];
+                annotations.forEach(anim => {
+                    const startPos = wordPositions[anim.startId ?? anim.targetId ?? 0];
+                    if (!startPos) return;
+                    
+                    ctx.strokeStyle = anim.color || '#000';
+                    ctx.fillStyle = anim.color || '#000';
+                    ctx.lineWidth = 2;
+
+                    if (anim.type === 'insert-text') {
+                        const x = startPos.left - 5;
+                        const y = startPos.drawTop - 10; 
+                        ctx.font = 'bold 12px "Inter"';
+                        ctx.textAlign = 'right';
+                        ctx.fillText(anim.text, x + 10, y + 10);
+                        ctx.beginPath();
+                        ctx.moveTo(startPos.left - 2, startPos.drawBottom);
+                        ctx.lineTo(startPos.left + 2, startPos.drawBottom);
+                        ctx.lineTo(startPos.left, startPos.drawTop + 2); 
+                        ctx.stroke();
+                    }
+                    else if (anim.type === 'symbol') {
+                        const endPos = anim.endId ? wordPositions[anim.endId] : startPos;
+                        const y = startPos.drawBottom + 2;
+                        
+                        if (anim.endId && anim.endId !== anim.startId) {
+                             const lines = {};
+                             for (let i = anim.startId; i <= anim.endId; i++) {
+                                 const p = wordPositions[i];
+                                 if (!p) continue;
+                                 const yKey = Math.round(p.drawBottom);
+                                 if (!lines[yKey]) lines[yKey] = { left: p.left, right: p.right };
+                                 else {
+                                     lines[yKey].left = Math.min(lines[yKey].left, p.left);
+                                     lines[yKey].right = Math.max(lines[yKey].right, p.right);
+                                 }
+                             }
+                             Object.values(lines).forEach(l => {
+                                 ctx.beginPath(); ctx.moveTo(l.left, y); ctx.lineTo(l.right, y); ctx.stroke();
+                             });
+                             const center = (startPos.left + endPos.right) / 2; 
+                             ctx.font = 'bold 14px "Inter"'; ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+                             ctx.fillText(anim.label || '', center, y + 2);
+                        } else {
+                            ctx.beginPath(); ctx.moveTo(startPos.left, y); ctx.lineTo(startPos.right, y); ctx.stroke();
+                            ctx.font = 'bold 14px "Inter"'; ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+                            ctx.fillText(anim.label || '', startPos.centerX, y + 2);
+                        }
+                    } 
+                    else if (anim.type === 'underline') {
+                        const lines = {};
+                        for (let i = anim.startId; i <= anim.endId; i++) {
+                            const p = wordPositions[i];
+                            if (!p) continue;
+                            const yKey = Math.round(p.drawBottom);
+                            if (!lines[yKey]) lines[yKey] = { left: p.left, right: p.right, bottom: p.drawBottom };
+                            else {
+                                lines[yKey].left = Math.min(lines[yKey].left, p.left);
+                                lines[yKey].right = Math.max(lines[yKey].right, p.right);
+                                lines[yKey].bottom = Math.max(lines[yKey].bottom, p.drawBottom);
+                            }
+                        }
+                        Object.values(lines).forEach((line) => {
+                            const y = line.bottom + 2; 
+                            ctx.beginPath(); 
+                            if(anim.label && (anim.label.includes('節') || anim.label.includes('受動') || anim.label.includes('副詞') || anim.label.includes('修飾') || anim.label.includes('原形'))) ctx.setLineDash([2, 2]);
+                            ctx.moveTo(line.left, y); ctx.lineTo(line.right, y); ctx.stroke();
+                        });
+                        ctx.setLineDash([]);
+                        if (anim.label) {
+                            const endPos = wordPositions[anim.endId];
+                            if(endPos) {
+                                ctx.font = '10px "Inter"'; ctx.textAlign = 'left'; ctx.textBaseline = 'top';
+                                ctx.fillText(anim.label, endPos.right + 2, endPos.drawBottom); 
+                            }
+                        }
+                    } 
+                    else if (anim.type === 'arrow') {
+                        const from = wordPositions[anim.fromId];
+                        const to = wordPositions[anim.toId];
+                        if (from && to) {
+                            const sx = from.centerX, sy = from.drawTop, ex = to.centerX, ey = to.drawTop;
+                            const cpY = Math.min(sy, ey) - 15;
+                            ctx.beginPath(); ctx.moveTo(sx, sy - 2); ctx.quadraticCurveTo((sx+ex)/2, cpY, ex, ey - 2); ctx.stroke();
+                            const angle = Math.atan2(ey - 2 - cpY, ex - (sx+ex)/2);
+                            ctx.beginPath(); ctx.moveTo(ex, ey - 2);
+                            ctx.lineTo(ex - 5 * Math.cos(angle - Math.PI/6), ey - 2 - 5 * Math.sin(angle - Math.PI/6));
+                            ctx.lineTo(ex - 5 * Math.cos(angle + Math.PI/6), ey - 2 - 5 * Math.sin(angle + Math.PI/6));
+                            ctx.fill();
+                        }
+                    } 
+                    else if (anim.type.startsWith('bracket')) {
+                        const endPos = wordPositions[anim.endId] || startPos;
+                        const isMultiLine = Math.abs(startPos.drawTop - endPos.drawTop) > 20;
+
+                        if (isMultiLine) {
+                            const top1 = startPos.drawTop - 2;
+                            const bottom1 = startPos.drawBottom + 2;
+                            const left1 = startPos.left - 3;
+                            ctx.beginPath();
+                            ctx.moveTo(left1 + 4, top1); ctx.lineTo(left1, top1); ctx.lineTo(left1, bottom1); ctx.lineTo(left1 + 4, bottom1);
+                            ctx.stroke();
+
+                            const top2 = endPos.drawTop - 2;
+                            const bottom2 = endPos.drawBottom + 2;
+                            const right2 = endPos.right + 3;
+                            
+                            if (anim.type !== 'bracket-start') {
+                                ctx.beginPath();
+                                ctx.moveTo(right2 - 4, top2); ctx.lineTo(right2, top2); ctx.lineTo(right2, bottom2); ctx.lineTo(right2 - 4, bottom2);
+                                ctx.stroke();
+                            }
+                        } else {
+                            const top = Math.min(startPos.drawTop, endPos.drawTop) - 2;
+                            const bottom = Math.max(startPos.drawBottom, endPos.drawBottom) + 2;
+                            const left = startPos.left - 3;
+                            const right = endPos.right + 3;
+                            ctx.beginPath();
+                            ctx.moveTo(left + 4, top); ctx.lineTo(left, top); ctx.lineTo(left, bottom); ctx.lineTo(left + 4, bottom);
+                            ctx.stroke();
+                            if (anim.type !== 'bracket-start') {
+                                ctx.beginPath();
+                                ctx.moveTo(right - 4, top); ctx.lineTo(right, top); ctx.lineTo(right, bottom); ctx.lineTo(right - 4, bottom);
+                                ctx.stroke();
+                            }
+                        }
+                        if (anim.label) {
+                             ctx.font = '11px "Inter"'; ctx.textAlign = 'left';
+                             ctx.fillText(anim.label, startPos.left - 3, startPos.drawTop - 12);
+                        }
+                    }
+                });
+            };
+
+            const nextStep = () => { if (currentStep < STEPS.length - 1) setCurrentStep(c => c + 1); };
+            const prevStep = () => { if (currentStep > 0) setCurrentStep(c => c - 1); };
+
+            const ChevronRight = () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="9 18 15 12 9 6"></polyline></svg>;
+            const ChevronLeft = () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="15 18 9 12 15 6"></polyline></svg>;
+            const RefreshCw = () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M23 4v6h-6"></path><path d="M1 20v-6h6"></path><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></svg>;
+
+            return (
+                <div className="max-w-4xl mx-auto p-4 md:p-6 min-h-screen pb-32">
+                    <div className="mb-6 border-b pb-4 flex justify-between items-center sticky top-0 bg-slate-50 z-20 pt-2">
+                        <div>
+                            <h1 className="text-xl md:text-2xl font-bold text-slate-800">英検準2級 長文解釈 (Salt - Para 3)</h1>
+                            <p className="text-slate-500 text-xs md:text-sm">{SOURCE_CREDIT}</p>
+                        </div>
+                        <div className="bg-white px-3 py-1 rounded border shadow-sm text-sm font-mono">{currentStep + 1} / {STEPS.length}</div>
+                    </div>
+                    <div ref={containerRef} className="relative bg-white rounded-xl shadow-lg border border-slate-200 p-6 md:p-8 mb-4 overflow-hidden">
+                        <canvas ref={canvasRef} className="absolute top-0 left-0 w-full h-full pointer-events-none z-10" />
+                        <div className="relative z-0 text-lg md:text-xl font-serif text-slate-800 tracking-wide" style={{ lineHeight: '1.8' }}>
+                            {WORDS.map((word, i) => (
+                                <span key={i} ref={el => { wordRefs.current[i] = el; }} className={`inline-block transition-colors duration-300 ${(STEPS[currentStep].highlightIds || []).includes(i) ? 'bg-yellow-200/70 rounded-sm' : ''}`} style={{ paddingRight: '0.3em', lineHeight: '1.35' }}>{word.text}</span>
+                            ))}
+                        </div>
+                    </div>
+                    <div className="mb-2"><span className="text-xs font-bold text-slate-400 uppercase pl-1">Translation</span></div>
+                    <div className="bg-slate-100 rounded-xl border border-slate-200 p-5 mb-6 text-base md:text-lg leading-loose font-sans text-slate-700">
+                        {JP_CHUNKS.map((chunk) => {
+                            const isActive = (STEPS[currentStep].jpHighlightIds || []).includes(chunk.id);
+                            return (
+                                <span key={chunk.id} className={`transition-all duration-300 inline-block px-1 rounded-sm ${isActive ? 'bg-white shadow-sm font-bold text-slate-900' : 'opacity-50'}`} style={{ borderBottom: isActive ? `2px solid ${STEPS[currentStep].mainColor}` : '2px solid transparent' }}>{chunk.text}</span>
+                            );
+                        })}
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sticky bottom-4 z-30">
+                        <div className="md:col-span-1 flex flex-row md:flex-col gap-2 justify-between md:justify-start">
+                            <div className="flex gap-2 w-full">
+                                <button onClick={prevStep} disabled={currentStep === 0} className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 disabled:opacity-50 shadow-sm"><ChevronLeft/> Prev</button>
+                                <button onClick={nextStep} disabled={currentStep === STEPS.length - 1} className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 shadow-md">Next <ChevronRight/></button>
+                            </div>
+                            <button onClick={() => setCurrentStep(0)} className="hidden md:flex items-center gap-2 text-slate-500 text-sm p-2 hover:bg-slate-100 rounded self-start"><RefreshCw/> Reset</button>
+                        </div>
+                        <div className="md:col-span-2 bg-slate-800 text-white p-5 rounded-lg shadow-xl border-l-4" style={{ borderLeftColor: STEPS[currentStep].mainColor || '#3b82f6' }}>
+                            <h3 className="font-bold mb-1 text-blue-200">{STEPS[currentStep].title}</h3>
+                            <p className="text-slate-300 text-sm md:text-base">{STEPS[currentStep].description}</p>
+                        </div>
+                    </div>
+                </div>
+            );
+        }
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<EnglishParser />);
+    </script>
+</body>
+</html>

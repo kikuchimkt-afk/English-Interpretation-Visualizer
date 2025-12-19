@@ -1,0 +1,591 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>English Visualizer - Studying Abroad (Full Version)</title>
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Noto+Sans+JP:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', 'Noto Sans JP', sans-serif; }
+        /* 文字の背景色が隣接しても綺麗に見える調整 */
+        .word-span {
+            padding: 0.25rem 0.1rem;
+            margin: 0;
+            border-radius: 4px;
+            display: inline-block;
+            line-height: 1.6;
+        }
+        /* アニメーション */
+        .fade-in { animation: fadeIn 0.5s ease-in; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+    </style>
+</head>
+<body class="bg-amber-50 text-slate-900 min-h-screen">
+    <div id="root"></div>
+
+    <script type="text/babel">
+        // ==========================================
+        // /* データ定義セクション (全文版) */
+        // ==========================================
+        
+        const TITLE = "Studying Abroad (Full Story)";
+        const SOURCE_CREDIT = "出典: 英検4級 2025年第2回 大問4C";
+
+        // 全文
+        const RAW_SENTENCE = "Ken is a junior high school student in Kanagawa. He loves soccer. He also likes meeting people, so he enjoys traveling abroad. Last summer, he did a homestay in Australia. Ken’s host family lived in a big city with many shops and restaurants. On weekends, they sometimes drove to the beach or the mountains. Ken went to a school in Australia, and he joined the school’s soccer team. At first, he couldn’t speak to his teammates in English. But he met a kind teammate. His name was John. They practiced soccer together every day, and John helped Ken with his English, too. Ken studied English and practiced soccer harder than before. Ken played well in his last game in Australia, and his team won the game. Ken said, “I learned a lot from you, John. Thank you.” Now, Ken is back in Japan. Every weekend, he calls John to practice his English.";
+
+        // 単語ごとの役割定義 (配列)
+        const WORD_ROLES = [
+            // --- Para 1 ---
+            // Ken is a junior high school student in Kanagawa. (0-8)
+            'S', 'V', 'C', 'C', 'C', 'C', 'C', 'M', 'M',
+            // He loves soccer. (9-11)
+            'S', 'V', 'O',
+            // He also likes meeting people, (12-16)
+            'S', 'M', 'V', 'O', 'O',
+            // so he enjoys traveling abroad. (17-21)
+            'CONN', 'S', 'V', 'O', 'O',
+            // Last summer, he did a homestay in Australia. (22-29)
+            'M', 'M', 'S', 'V', 'O', 'O', 'M', 'M',
+            
+            // --- Para 2 ---
+            // Ken’s host family lived in a big city (30-37)
+            'S', 'S', 'S', 'V', 'M', 'M', 'M', 'M',
+            // with many shops and restaurants. (38-42)
+            'M', 'M', 'M', 'M', 'M',
+            // On weekends, they sometimes drove (43-47)
+            'M', 'M', 'S', 'M', 'V',
+            // to the beach or the mountains. (48-53)
+            'M', 'M', 'M', 'M', 'M', 'M',
+
+            // --- Para 3 ---
+            // Ken went to a school in Australia, (54-60)
+            'S', 'V', 'M', 'M', 'M', 'M', 'M',
+            // and he joined the school’s soccer team. (61-67)
+            'CONN', 'S', 'V', 'O', 'O', 'O', 'O',
+            // At first, he couldn’t speak (68-72)
+            'M', 'M', 'S', 'V', 'V',
+            // to his teammates in English. (73-77)
+            'M', 'M', 'M', 'M', 'M',
+            // But he met a kind teammate. (78-83)
+            'CONN', 'S', 'V', 'O', 'O', 'O',
+            // His name was John. (84-87)
+            'S', 'S', 'V', 'C',
+            // They practiced soccer together every day, (88-93)
+            'S', 'V', 'O', 'M', 'M', 'M',
+            // and John helped Ken with his English, too. (94-101)
+            'CONN', 'S', 'V', 'O', 'M', 'M', 'M', 'M',
+            // Ken studied English and practiced soccer (102-107)
+            'S', 'V', 'O', 'CONN', 'V', 'O',
+            // harder than before. (108-110)
+            'M', 'M', 'M',
+
+            // --- Para 4 ---
+            // Ken played well in his last game in Australia, (111-119)
+            'S', 'V', 'M', 'M', 'M', 'M', 'M', 'M', 'M',
+            // and his team won the game. (120-125)
+            'CONN', 'S', 'S', 'V', 'O', 'O',
+            // Ken said, “I learned a lot from you, John. Thank you.” (126-137)
+            'S', 'V', 'O', 'O', 'O', 'O', 'O', 'O', 'O', 'O', 'O', 'O',
+            // Now, Ken is back in Japan. (138-143)
+            'M', 'S', 'V', 'C', 'M', 'M',
+            // Every weekend, he calls John (144-148)
+            'M', 'M', 'S', 'V', 'O',
+            // to practice his English. (149-152)
+            'M', 'M', 'M', 'M'
+        ];
+
+        const WORDS = RAW_SENTENCE.split(' ').map((word, index) => ({
+            id: index, text: word, role: WORD_ROLES[index] || 'OTHER'
+        }));
+
+        // 日本語チャンク訳
+        const JP_CHUNKS = [
+            // --- Para 1 ---
+            { ids: [0], text: "ケンは", role: "S" },
+            { ids: [1], text: "です", role: "V" },
+            { ids: [2,3,4,5,6], text: "中学生", role: "C" },
+            { ids: [7,8], text: "神奈川の", role: "M" },
+
+            { ids: [9], text: "彼は", role: "S" },
+            { ids: [10], text: "大好きです", role: "V" },
+            { ids: [11], text: "サッカーが", role: "O" },
+
+            { ids: [12], text: "彼は", role: "S" },
+            { ids: [13], text: "～もまた", role: "M" },
+            { ids: [14], text: "好きです", role: "V" },
+            { ids: [15,16], text: "人に出会うことが", role: "O" },
+
+            { ids: [17], text: "だから", role: "CONN" },
+            { ids: [18], text: "彼は", role: "S" },
+            { ids: [19], text: "楽しみます", role: "V" },
+            { ids: [20,21], text: "海外旅行を", role: "O" },
+
+            { ids: [22,23], text: "去年の夏、", role: "M" },
+            { ids: [24], text: "彼は", role: "S" },
+            { ids: [25], text: "しました", role: "V" },
+            { ids: [26,27], text: "ホームステイを", role: "O" },
+            { ids: [28,29], text: "オーストラリアで", role: "M" },
+
+            // --- Para 2 ---
+            { ids: [30,31,32], text: "ケンのホストファミリーは", role: "S" },
+            { ids: [33], text: "住んでいました", role: "V" },
+            { ids: [34,35,36,37], text: "大きな都市に", role: "M" },
+            { ids: [38,39,40,41,42], text: "たくさんのお店やレストランがある", role: "M" },
+
+            { ids: [43,44], text: "週末には、", role: "M" },
+            { ids: [45], text: "彼らは", role: "S" },
+            { ids: [46], text: "時々", role: "M" },
+            { ids: [47], text: "車で行きました(運転しました)", role: "V" },
+            { ids: [48,49,50,51,52,53], text: "海や山へ", role: "M" },
+
+            // --- Para 3 ---
+            { ids: [54], text: "ケンは", role: "S" },
+            { ids: [55], text: "行きました(通いました)", role: "V" },
+            { ids: [56,57,58], text: "学校へ", role: "M" },
+            { ids: [59,60], text: "オーストラリアの", role: "M" },
+
+            { ids: [61], text: "そして", role: "CONN" },
+            { ids: [62], text: "彼は", role: "S" },
+            { ids: [63], text: "入りました", role: "V" },
+            { ids: [64,65,66,67], text: "学校のサッカーチームに", role: "O" },
+
+            { ids: [68,69], text: "最初は、", role: "M" },
+            { ids: [70], text: "彼は", role: "S" },
+            { ids: [71,72], text: "話せませんでした", role: "V" },
+            { ids: [73,74,75], text: "チームメイトに", role: "M" },
+            { ids: [76,77], text: "英語で", role: "M" },
+
+            { ids: [78], text: "しかし", role: "CONN" },
+            { ids: [79], text: "彼は", role: "S" },
+            { ids: [80], text: "出会いました", role: "V" },
+            { ids: [81,82,83], text: "親切なチームメイトに", role: "O" },
+
+            { ids: [84,85], text: "彼の名前は", role: "S" },
+            { ids: [86], text: "でした", role: "V" },
+            { ids: [87], text: "ジョン", role: "C" },
+
+            { ids: [88], text: "彼らは", role: "S" },
+            { ids: [89], text: "練習しました", role: "V" },
+            { ids: [90], text: "サッカーを", role: "O" },
+            { ids: [91], text: "一緒に", role: "M" },
+            { ids: [92,93], text: "毎日", role: "M" },
+
+            { ids: [94], text: "そして", role: "CONN" },
+            { ids: [95], text: "ジョンは", role: "S" },
+            { ids: [96], text: "手伝いました", role: "V" },
+            { ids: [97], text: "ケンを", role: "O" },
+            { ids: [98,99,100,101], text: "英語（の勉強）でも", role: "M" },
+
+            { ids: [102], text: "ケンは", role: "S" },
+            { ids: [103], text: "勉強し、", role: "V" },
+            { ids: [104], text: "英語を", role: "O" },
+            { ids: [105], text: "そして", role: "CONN" },
+            { ids: [106], text: "練習しました", role: "V" },
+            { ids: [107], text: "サッカーを", role: "O" },
+            { ids: [108,109,110], text: "以前よりも一生懸命に", role: "M" },
+
+            // --- Para 4 ---
+            { ids: [111], text: "ケンは", role: "S" },
+            { ids: [112], text: "プレイしました", role: "V" },
+            { ids: [113], text: "上手に", role: "M" },
+            { ids: [114,115,116,117], text: "最後の試合で", role: "M" },
+            { ids: [118,119], text: "オーストラリアでの", role: "M" },
+
+            { ids: [120], text: "そして", role: "CONN" },
+            { ids: [121,122], text: "彼のチームは", role: "S" },
+            { ids: [123], text: "勝ちました", role: "V" },
+            { ids: [124,125], text: "その試合に", role: "O" },
+
+            { ids: [126], text: "ケンは", role: "S" },
+            { ids: [127], text: "言いました", role: "V" },
+            { ids: [128,129,130,131,132,133,134,135,136,137], text: "「ジョン、君からたくさん学んだよ。ありがとう。」", role: "O" },
+
+            { ids: [138], text: "今、", role: "M" },
+            { ids: [139], text: "ケンは", role: "S" },
+            { ids: [140], text: "います", role: "V" },
+            { ids: [141], text: "戻って", role: "C" },
+            { ids: [142,143], text: "日本に", role: "M" },
+
+            { ids: [144,145], text: "毎週末、", role: "M" },
+            { ids: [146], text: "彼は", role: "S" },
+            { ids: [147], text: "電話します", role: "V" },
+            { ids: [148], text: "ジョンに", role: "O" },
+            { ids: [149,150,151,152], text: "英語を練習するために", role: "M" }
+        ];
+
+        // 学習ステップ
+        const STEPS = [
+            // --- Para 1 ---
+            {
+                title: "#1 導入：ケンの紹介",
+                description: "まずは主語(S)と動詞(V)を見つけよう。「ケンは(S)」「～です(V)」という形だよ。",
+                highlightIds: [0, 1, 2, 3, 4, 5, 6, 7, 8],
+                annotations: [
+                    { type: 'label', wordId: 0, text: 'だれが' },
+                    { type: 'label', wordId: 1, text: 'どうする' },
+                    { type: 'slash', wordId: 1 }, { type: 'slash', wordId: 6 }
+                ]
+            },
+            {
+                title: "#1 ケンの好きなこと",
+                description: "「だれが(S)」「どうする(V)」「なにを(O)」の基本文型。「～が好き」は love を使うよ。",
+                highlightIds: [9, 10, 11],
+                annotations: [
+                    { type: 'label', wordId: 9, text: 'だれが' },
+                    { type: 'label', wordId: 10, text: 'どうする' },
+                    { type: 'label', wordId: 11, text: 'なにを' }
+                ]
+            },
+            {
+                title: "#1 他にも好きなこと",
+                description: "長い文は接続詞(CONN)の「so (だから)」の前で区切ろう。前半は「人に会うこと」が好きと言っているよ。",
+                highlightIds: [12, 13, 14, 15, 16],
+                annotations: [
+                    { type: 'label', wordId: 12, text: 'だれが' },
+                    { type: 'label', wordId: 14, text: 'どうする' },
+                    { type: 'underline', startId: 15, endId: 16 },
+                    { type: 'slash', wordId: 16 }
+                ]
+            },
+            {
+                title: "#1 だから、どうする？",
+                description: "「so」の後も S -> V -> O の順番は同じ。「海外旅行をすること」を楽しんでいるんだね。",
+                highlightIds: [17, 18, 19, 20, 21],
+                annotations: [
+                    { type: 'label', wordId: 17, text: 'つなぎ' },
+                    { type: 'label', wordId: 18, text: 'だれが' },
+                    { type: 'label', wordId: 19, text: 'どうする' }
+                ]
+            },
+            {
+                title: "#1 過去の出来事",
+                description: "「Last summer (去年の夏)」は時を表す言葉(M)。文の最初に来ることもあるよ。",
+                highlightIds: [22, 23, 24, 25, 26, 27, 28, 29],
+                annotations: [
+                    { type: 'label', wordId: 23, text: 'いつ' },
+                    { type: 'slash', wordId: 23 },
+                    { type: 'label', wordId: 24, text: 'だれが' },
+                    { type: 'label', wordId: 25, text: 'どうする' },
+                    { type: 'slash', wordId: 27 }
+                ]
+            },
+            
+            // --- Para 2 ---
+            {
+                title: "#2 ホストファミリーの家",
+                description: "主語が少し長いね。「Ken's host family」までが主語(S)だよ。lived は「住んでいた」という過去形。",
+                highlightIds: [30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42],
+                annotations: [
+                    { type: 'underline', startId: 30, endId: 32 },
+                    { type: 'label', wordId: 32, text: 'だれが' },
+                    { type: 'slash', wordId: 32 },
+                    { type: 'label', wordId: 33, text: 'どうする' },
+                    { type: 'slash', wordId: 33 },
+                    { type: 'label', wordId: 38, text: 'くわしく' }
+                ]
+            },
+            {
+                title: "#2 週末の過ごし方",
+                description: "「drove」は drive（運転する）の過去形。ここでは車で出かけたという意味だね。",
+                highlightIds: [43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53],
+                annotations: [
+                    { type: 'label', wordId: 44, text: 'いつ' },
+                    { type: 'slash', wordId: 44 },
+                    { type: 'label', wordId: 45, text: 'だれが' },
+                    { type: 'label', wordId: 47, text: 'どうする' },
+                    { type: 'label', wordId: 48, text: 'どこへ' }
+                ]
+            },
+
+            // --- Para 3 ---
+            {
+                title: "#3 学校と部活動",
+                description: "「joined」は「参加した」という意味。「and」で文がつながっているね。",
+                highlightIds: [54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67],
+                annotations: [
+                    { type: 'label', wordId: 54, text: 'だれが' },
+                    { type: 'label', wordId: 55, text: 'どうする' },
+                    { type: 'slash', wordId: 60 },
+                    { type: 'label', wordId: 61, text: 'つなぎ' },
+                    { type: 'label', wordId: 63, text: 'どうする' }
+                ]
+            },
+            {
+                title: "#3 最初の困難",
+                description: "「couldn't speak」は「話せなかった」。否定文だね。",
+                highlightIds: [68, 69, 70, 71, 72, 73, 74, 75, 76, 77],
+                annotations: [
+                    { type: 'label', wordId: 69, text: 'いつ' },
+                    { type: 'slash', wordId: 69 },
+                    { type: 'label', wordId: 70, text: 'だれが' },
+                    { type: 'underline', startId: 71, endId: 72 }, // couldn't speak
+                    { type: 'label', wordId: 72, text: 'どうする' }
+                ]
+            },
+            {
+                title: "#3 ジョンとの出会い",
+                description: "「But (しかし)」で話が変わるよ。met は meet（会う）の過去形。",
+                highlightIds: [78, 79, 80, 81, 82, 83, 84, 85, 86, 87],
+                annotations: [
+                    { type: 'label', wordId: 78, text: 'つなぎ' },
+                    { type: 'slash', wordId: 78 },
+                    { type: 'label', wordId: 80, text: 'どうする' },
+                    { type: 'label', wordId: 86, text: 'どうする' }
+                ]
+            },
+            {
+                title: "#3 ジョンとの練習",
+                description: "「helped Ken with his English」は「ケンの英語（の勉強）を手伝った」という意味。",
+                highlightIds: [88, 89, 90, 91, 92, 93, 94, 95, 96, 97, 98, 99, 100, 101],
+                annotations: [
+                    { type: 'label', wordId: 88, text: 'だれが' },
+                    { type: 'label', wordId: 89, text: 'どうする' },
+                    { type: 'slash', wordId: 93 },
+                    { type: 'label', wordId: 95, text: 'だれが' },
+                    { type: 'label', wordId: 96, text: 'どうする' }
+                ]
+            },
+            {
+                title: "#3 努力の結果",
+                description: "「harder than before」は「以前よりも一生懸命に」。比較級がつかわれているね。",
+                highlightIds: [102, 103, 104, 105, 106, 107, 108, 109, 110],
+                annotations: [
+                    { type: 'label', wordId: 102, text: 'だれが' },
+                    { type: 'label', wordId: 103, text: 'どうする' },
+                    { type: 'label', wordId: 106, text: 'どうする' },
+                    { type: 'underline', startId: 108, endId: 110 }
+                ]
+            },
+
+            // --- Para 4 ---
+            {
+                title: "#4 最後の試合",
+                description: "「won」は win（勝つ）の過去形。「well」は「上手に」という意味の副詞(M)だよ。",
+                highlightIds: [111, 112, 113, 114, 115, 116, 117, 118, 119, 120, 121, 122, 123, 124, 125],
+                annotations: [
+                    { type: 'label', wordId: 111, text: 'だれが' },
+                    { type: 'label', wordId: 112, text: 'どうする' },
+                    { type: 'slash', wordId: 113 },
+                    { type: 'label', wordId: 122, text: 'だれが' },
+                    { type: 'label', wordId: 123, text: 'どうする' }
+                ]
+            },
+            {
+                title: "#4 ジョンへの感謝",
+                description: "「learned」は学んだ。「a lot」はたくさん。「from you」で「あなたから」。",
+                highlightIds: [126, 127, 128, 129, 130, 131, 132, 133, 134, 135, 136, 137],
+                annotations: [
+                    { type: 'label', wordId: 126, text: 'だれが' },
+                    { type: 'label', wordId: 127, text: 'どうする' },
+                    { type: 'slash', wordId: 127 }
+                ]
+            },
+            {
+                title: "#4 帰国後",
+                description: "物語の最後。「calls John」は「ジョンに電話する」。「to practice」は「練習するために」という目的を表しているよ。",
+                highlightIds: [138, 139, 140, 141, 142, 143, 144, 145, 146, 147, 148, 149, 150, 151, 152],
+                annotations: [
+                    { type: 'label', wordId: 139, text: 'だれが' },
+                    { type: 'label', wordId: 140, text: 'どうする' },
+                    { type: 'slash', wordId: 143 },
+                    { type: 'label', wordId: 147, text: 'どうする' },
+                    { type: 'underline', startId: 149, endId: 152 },
+                    { type: 'label', wordId: 151, text: '何のために' }
+                ]
+            }
+        ];
+
+        // ==========================================
+        // /* ロジックセクション (React App) */
+        // ==========================================
+
+        const ROLE_STYLES = {
+            S: { color: '#1e40af', bg: '#dbeafe', label: 'S (だれが)' },     // Blue
+            V: { color: '#b91c1c', bg: '#fee2e2', label: 'V (どうする)' },   // Red
+            O: { color: '#047857', bg: '#d1fae5', label: 'O (なにを)' },     // Green
+            C: { color: '#047857', bg: '#d1fae5', label: 'C (どんなだ)' },   // Green (same as O)
+            M: { color: '#b45309', bg: '#fef3c7', label: 'M (いつ・どこ)' }, // Orange
+            CONN: { color: '#7e22ce', bg: '#f3e8ff', label: 'CONN (つなぎ)' }, // Purple
+            OTHER: { color: '#334155', bg: 'transparent', label: '' }
+        };
+
+        const App = () => {
+            const [currentStepIndex, setCurrentStepIndex] = React.useState(0);
+            const containerRef = React.useRef(null);
+            
+            const currentStep = STEPS[currentStepIndex];
+            const activeIds = currentStep.highlightIds;
+
+            const nextStep = () => {
+                if (currentStepIndex < STEPS.length - 1) setCurrentStepIndex(prev => prev + 1);
+            };
+
+            const prevStep = () => {
+                if (currentStepIndex > 0) setCurrentStepIndex(prev => prev - 1);
+            };
+
+            // 該当する単語が含まれるJP_CHUNKを取得
+            const getActiveJpChunks = () => {
+                return JP_CHUNKS.filter(chunk => 
+                    chunk.ids.some(id => activeIds.includes(id))
+                );
+            };
+
+            // 自動スクロール: ステップが変わったときに該当箇所を表示
+            React.useEffect(() => {
+                if (containerRef.current) {
+                    const activeElement = containerRef.current.querySelector('[data-active="true"]');
+                    if (activeElement) {
+                        activeElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    }
+                }
+            }, [currentStepIndex]);
+
+            // 役割に応じたスタイルを取得
+            const getWordStyle = (role, isActive) => {
+                const style = ROLE_STYLES[role] || ROLE_STYLES.OTHER;
+                if (!isActive) return { color: '#cbd5e1', backgroundColor: 'transparent' }; // 非アクティブは薄いグレー
+                return {
+                    color: style.color,
+                    backgroundColor: style.bg,
+                };
+            };
+
+            return (
+                <div className="max-w-4xl mx-auto p-4 md:p-8 font-sans">
+                    {/* Header */}
+                    <header className="mb-6 flex justify-between items-end border-b border-slate-200 pb-4 sticky top-0 bg-amber-50 z-20">
+                        <div>
+                            <h1 className="text-xl md:text-2xl font-bold text-slate-800 flex items-center gap-2">
+                                <span className="bg-amber-400 text-white px-2 py-1 rounded text-sm">英検4級</span>
+                                {TITLE}
+                            </h1>
+                            <p className="text-xs md:text-sm text-slate-500 mt-1">{SOURCE_CREDIT}</p>
+                        </div>
+                        <div className="text-sm font-semibold text-slate-500 whitespace-nowrap ml-4">
+                            Step {currentStepIndex + 1} / {STEPS.length}
+                        </div>
+                    </header>
+
+                    {/* Main Visualizer Area */}
+                    <main className="bg-white rounded-xl shadow-lg p-6 md:p-10 mb-8 relative overflow-hidden h-[400px] overflow-y-auto" id="text-container">
+                        
+                        {/* English Text Area */}
+                        <div className="relative leading-[2.8] text-2xl font-medium flex flex-wrap gap-y-4" ref={containerRef}>
+                            {WORDS.map((word) => {
+                                const isActive = activeIds.includes(word.id);
+                                const style = getWordStyle(word.role, isActive);
+                                const annotation = currentStep.annotations.find(a => a.wordId === word.id);
+                                const isSlash = annotation?.type === 'slash';
+                                const label = annotation?.type === 'label' ? annotation.text : null;
+                                const isUnderlined = currentStep.annotations.some(a => a.type === 'underline' && word.id >= a.startId && word.id <= a.endId);
+
+                                return (
+                                    <div 
+                                        key={word.id} 
+                                        className="relative inline-flex flex-col justify-end group"
+                                        data-active={isActive}
+                                    >
+                                        {/* Role Label (Above) */}
+                                        {label && isActive && (
+                                            <span 
+                                                className="absolute -top-6 left-1/2 transform -translate-x-1/2 text-[10px] font-bold px-1.5 py-0.5 rounded shadow-sm whitespace-nowrap z-10"
+                                                style={{ backgroundColor: style.color, color: 'white' }}
+                                            >
+                                                {label}
+                                            </span>
+                                        )}
+
+                                        {/* Word Itself */}
+                                        <span 
+                                            className={`word-span transition-all duration-300 ${isActive ? 'scale-105 shadow-sm z-10 px-1 mx-0.5 font-bold' : 'opacity-40 mx-0.5 grayscale'}`}
+                                            style={style}
+                                        >
+                                            {word.text}
+                                        </span>
+
+                                        {/* Slash Mark (After) */}
+                                        {isSlash && isActive && (
+                                            <span className="absolute -right-2 top-1 bottom-1 w-0.5 bg-red-500 transform rotate-12 h-full opacity-80"></span>
+                                        )}
+
+                                        {/* Underline (Group) */}
+                                        {isUnderlined && isActive && (
+                                            <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-slate-400 opacity-50"></div>
+                                        )}
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    </main>
+
+                    {/* Controls & Explanation */}
+                    <section className="grid md:grid-cols-3 gap-6">
+                        {/* Left: Navigation & Explanation */}
+                        <div className="md:col-span-1 space-y-4">
+                            <div className="flex gap-2">
+                                <button 
+                                    onClick={prevStep} 
+                                    disabled={currentStepIndex === 0}
+                                    className="flex-1 px-4 py-3 bg-white border border-slate-300 rounded-lg text-slate-600 font-semibold hover:bg-slate-50 disabled:opacity-50 transition shadow-sm"
+                                >
+                                    ← 戻る
+                                </button>
+                                <button 
+                                    onClick={nextStep} 
+                                    disabled={currentStepIndex === STEPS.length - 1}
+                                    className="flex-1 px-4 py-3 bg-indigo-600 rounded-lg text-white font-semibold hover:bg-indigo-700 disabled:opacity-50 shadow-md transition"
+                                >
+                                    次へ →
+                                </button>
+                            </div>
+                            
+                            <div className="bg-white p-5 rounded-lg border border-slate-200 shadow-sm fade-in" key={currentStepIndex}>
+                                <h3 className="font-bold text-lg text-indigo-900 mb-2">{currentStep.title}</h3>
+                                <p className="text-slate-600 text-sm leading-relaxed">
+                                    {currentStep.description}
+                                </p>
+                            </div>
+                        </div>
+
+                        {/* Right: Direct Translation (Chunks) */}
+                        <div className="md:col-span-2 bg-white p-5 rounded-lg border border-slate-200 shadow-sm min-h-[160px]">
+                            <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">語順で理解する (直読直解)</h4>
+                            <div className="flex flex-wrap gap-2 text-lg items-end">
+                                {getActiveJpChunks().length > 0 ? (
+                                    getActiveJpChunks().map((chunk, i) => (
+                                        <div key={i} className="flex flex-col items-center fade-in" style={{ animationDelay: `${i * 0.05}s` }}>
+                                            <span 
+                                                className="px-3 py-1 rounded text-slate-800 font-medium border-b-2 text-base md:text-lg"
+                                                style={{ 
+                                                    backgroundColor: ROLE_STYLES[chunk.role]?.bg || '#f1f5f9',
+                                                    borderColor: ROLE_STYLES[chunk.role]?.color || '#cbd5e1'
+                                                }}
+                                            >
+                                                {chunk.text}
+                                            </span>
+                                            <span className="text-[10px] font-bold mt-1 text-slate-400">
+                                                {ROLE_STYLES[chunk.role]?.label || ''}
+                                            </span>
+                                        </div>
+                                    ))
+                                ) : (
+                                    <p className="text-slate-400 italic">ここに日本語訳が表示されます</p>
+                                )}
+                            </div>
+                        </div>
+                    </section>
+                </div>
+            );
+        };
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>

@@ -1,0 +1,426 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>英検準2級 構文解釈 (2025-2 Salt) - Para 2</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&family=Noto+Serif+JP:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        .font-serif { font-family: 'Times New Roman', Times, serif; }
+        .font-sans { font-family: 'Inter', 'Noto Sans JP', sans-serif; }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-900">
+    <div id="root"></div>
+    <script type="text/babel">
+        // ==========================================
+        // /* データ定義セクション */
+        // ==========================================
+        
+        const SENTENCES = [
+            "In the past, people all over the world wanted salt for a variety of reasons.",
+            "For example, people used salt when there were no refrigerators.",
+            "This was because it could help food last longer.",
+            "Salt was also useful in the field of medicine.",
+            "Past records show that it was used to treat both humans and animals.",
+            "People relied on salt as a medicine to improve their health conditions and to treat animals’ injuries."
+        ];
+
+        const RAW_SENTENCE = SENTENCES.join(' ');
+        const SOURCE_CREDIT = "出典：英検準2級 2025年度 第2回 大問4B (本会場)";
+
+        // 単語分割
+        const WORDS = RAW_SENTENCE.split(' ').map((word, index) => ({
+            id: index,
+            text: word
+        }));
+
+        // 日本語訳
+        const JP_CHUNKS = [
+            { id: 0, text: "過去において、世界中の人々は" },
+            { id: 1, text: "様々な理由で塩を求めました。" },
+            { id: 2, text: "例えば、冷蔵庫がなかった頃、" },
+            { id: 3, text: "人々は塩を使っていました。" },
+            { id: 4, text: "これは、食品を長持ちさせるのに" },
+            { id: 5, text: "塩が役立ったからです。" },
+            { id: 6, text: "塩は医療の分野でも有用でした。" },
+            { id: 7, text: "過去の記録によると、" },
+            { id: 8, text: "人間と動物の両方の治療に使われたことが分かります。" },
+            { id: 9, text: "人々は薬として塩に頼っていました、" },
+            { id: 10, text: "健康状態を改善し、動物の怪我を治すために。" }
+        ];
+
+        const COLORS = {
+            S: '#ef4444', V: '#ef4444', O: '#ef4444', C: '#ef4444',
+            REL: '#3b82f6', MOD: '#10b981', ETC: '#f97316', GRAY: '#64748b',
+            CONJ: '#8b5cf6'
+        };
+
+        const range = (start, end) => Array.from({ length: end - start + 1 }, (_, i) => start + i);
+
+        /* Index Mapping:
+        0-13: In the past, people all over the world wanted salt for a variety of reasons.
+              (past,:2, people:3, world:7, wanted:8, reasons.:13)
+        14-23: For example, people used salt when there were no refrigerators.
+              (example,:15, people:16, refrigerators.:23)
+        24-31: This was because it could help food last longer.
+              (because:26, help:29, longer.:31)
+        32-40: Salt was also useful in the field of medicine.
+              (medicine.:40)
+        41-53: Past records show that it was used to treat both humans and animals.
+              (show:43, that:44, animals.:53)
+        54-73: People relied on salt as a medicine to improve their health conditions and to treat animals’ injuries.
+               (relied:55, on:56, conditions:66, and:67, treat:69, injuries.:73)
+        */
+
+        const STEPS = [
+            {
+                title: "1文目: 後置修飾と文の要素",
+                description: "「all over the world」は前の「people」を修飾しています。「In the past」は文頭の副詞句です。",
+                annotations: [
+                    { type: 'bracket-sub', label: '時(副詞句)', startId: 0, endId: 2, color: COLORS.MOD },
+                    { type: 'symbol', label: 'S', startId: 3, color: COLORS.S },
+                    { type: 'bracket-sub', label: '形容詞句', startId: 4, endId: 7, color: COLORS.MOD },
+                    { type: 'arrow', fromId: 4, toId: 3, color: COLORS.MOD },
+                    { type: 'symbol', label: 'V', startId: 8, color: COLORS.V },
+                    { type: 'symbol', label: 'O', startId: 9, color: COLORS.O },
+                    { type: 'bracket-sub', label: '副詞句(理由)', startId: 10, endId: 13, color: COLORS.MOD }
+                ],
+                highlightIds: range(0, 13),
+                jpHighlightIds: [0, 1],
+                mainColor: COLORS.S
+            },
+            {
+                title: "2文目: 時を表す副詞節",
+                description: "「when...」は「～の時」という意味の副詞節を作ります。主節は people used salt です。",
+                annotations: [
+                    { type: 'insert-text', text: '接続副詞', targetId: 14, color: COLORS.GRAY },
+                    { type: 'symbol', label: 'S', startId: 16, color: COLORS.S },
+                    { type: 'symbol', label: 'V', startId: 17, color: COLORS.V },
+                    { type: 'symbol', label: 'O', startId: 18, color: COLORS.O },
+                    { type: 'bracket-start', label: '副詞節(時)', startId: 19, endId: 23, color: COLORS.CONJ }
+                ],
+                highlightIds: range(14, 23),
+                jpHighlightIds: [2, 3],
+                mainColor: COLORS.CONJ
+            },
+            {
+                title: "3文目: SVOC的な使役表現",
+                description: "because節の中身に注目。「help + O + 原形不定詞(last)」で「Oが～するのを助ける(役立つ)」という構造です。",
+                annotations: [
+                    { type: 'symbol', label: 'S', startId: 24, color: COLORS.S },
+                    { type: 'symbol', label: 'V', startId: 25, color: COLORS.V },
+                    { type: 'bracket-start', label: '副詞節(理由)', startId: 26, endId: 31, color: COLORS.CONJ },
+                    { type: 'symbol', label: "S'", startId: 27, color: COLORS.S },
+                    { type: 'symbol', label: "V'", startId: 28, endId: 29, color: COLORS.V },
+                    { type: 'symbol', label: "O'", startId: 30, color: COLORS.O },
+                    { type: 'underline', label: "C'(原形)", startId: 31, endId: 31, color: COLORS.C }
+                ],
+                highlightIds: range(24, 31),
+                jpHighlightIds: [4, 5],
+                mainColor: COLORS.V
+            },
+            {
+                title: "4文目: SVC構造",
+                description: "文末の「in the field of medicine」は「useful」の範囲を限定する副詞句です。",
+                annotations: [
+                    { type: 'symbol', label: 'S', startId: 32, color: COLORS.S },
+                    { type: 'symbol', label: 'V', startId: 33, color: COLORS.V },
+                    { type: 'symbol', label: 'C', startId: 35, color: COLORS.C },
+                    { type: 'bracket-sub', label: '範囲(副詞句)', startId: 36, endId: 40, color: COLORS.MOD }
+                ],
+                highlightIds: range(32, 40),
+                jpHighlightIds: [6],
+                mainColor: COLORS.C
+            },
+            {
+                title: "5文目: 接続詞thatがつくる名詞節",
+                description: "showの目的語としてthat節があります。節内は受動態(was used)と目的を表す不定詞(to treat)です。",
+                annotations: [
+                    { type: 'symbol', label: 'S', startId: 41, endId: 42, color: COLORS.S },
+                    { type: 'symbol', label: 'V', startId: 43, color: COLORS.V },
+                    { type: 'bracket-start', label: '名詞節(O)', startId: 44, endId: 53, color: COLORS.O },
+                    { type: 'symbol', label: "S'", startId: 45, color: COLORS.S },
+                    { type: 'underline', label: "V'(受動態)", startId: 46, endId: 47, color: COLORS.V },
+                    { type: 'bracket-sub', label: '目的', startId: 48, endId: 53, color: COLORS.MOD }
+                ],
+                highlightIds: range(41, 53),
+                jpHighlightIds: [7, 8],
+                mainColor: COLORS.O
+            },
+            {
+                title: "6文目: 並列構造と目的の不定詞",
+                description: "「to improve...」と「(to) treat...」が and で結ばれ、両方とも目的を表しています。",
+                annotations: [
+                    { type: 'symbol', label: 'S', startId: 54, color: COLORS.S },
+                    { type: 'symbol', label: 'V', startId: 55, endId: 56, color: COLORS.V },
+                    { type: 'symbol', label: 'O', startId: 57, color: COLORS.O },
+                    { type: 'bracket-sub', label: '副詞句', startId: 58, endId: 60, color: COLORS.MOD },
+                    { type: 'bracket-start', label: '目的①', startId: 61, endId: 66, color: COLORS.MOD },
+                    { type: 'insert-text', text: '並列', targetId: 67, color: COLORS.CONJ },
+                    { type: 'bracket-sub', label: '目的②', startId: 68, endId: 73, color: COLORS.MOD }
+                ],
+                highlightIds: range(54, 73),
+                jpHighlightIds: [9, 10],
+                mainColor: COLORS.MOD
+            }
+        ];
+
+        // ==========================================
+        // /* ロジックセクション */
+        // ==========================================
+        
+        function EnglishParser() {
+            const [currentStep, setCurrentStep] = React.useState(0);
+            const [wordPositions, setWordPositions] = React.useState({});
+            const containerRef = React.useRef(null);
+            const canvasRef = React.useRef(null);
+            const wordRefs = React.useRef([]);
+
+            const calculatePositions = () => {
+                if (!containerRef.current) return;
+                const containerRect = containerRef.current.getBoundingClientRect();
+                const computedStyle = window.getComputedStyle(containerRef.current);
+                const borderLeft = parseFloat(computedStyle.borderLeftWidth) || 0;
+                const borderTop = parseFloat(computedStyle.borderTopWidth) || 0;
+                const positions = {};
+
+                WORDS.forEach((_, index) => {
+                    const el = wordRefs.current[index];
+                    if (el) {
+                        const rect = el.getBoundingClientRect();
+                        positions[index] = {
+                            x: rect.left - containerRect.left - borderLeft,
+                            y: rect.top - containerRect.top - borderTop,
+                            width: rect.width, height: rect.height,
+                            drawTop: rect.top - containerRect.top - borderTop,
+                            drawBottom: rect.bottom - containerRect.top - borderTop,
+                            left: rect.left - containerRect.left - borderLeft,
+                            right: rect.right - containerRect.left - borderLeft - 3,
+                            centerX: (rect.left + rect.right - 2 * (containerRect.left + borderLeft)) / 2
+                        };
+                    }
+                });
+                setWordPositions(positions);
+            };
+
+            React.useEffect(() => {
+                calculatePositions();
+                const observer = new ResizeObserver(calculatePositions);
+                if (containerRef.current) observer.observe(containerRef.current);
+                document.fonts.ready.then(calculatePositions);
+                window.addEventListener('resize', calculatePositions);
+                return () => { observer.disconnect(); window.removeEventListener('resize', calculatePositions); };
+            }, []);
+
+            React.useLayoutEffect(calculatePositions, [currentStep]);
+            React.useEffect(() => drawCanvas(), [wordPositions, currentStep]);
+
+            const drawCanvas = () => {
+                const canvas = canvasRef.current;
+                const ctx = canvas?.getContext('2d');
+                if (!canvas || !ctx || Object.keys(wordPositions).length === 0) return;
+
+                const dpr = window.devicePixelRatio || 1;
+                const container = containerRef.current;
+                canvas.width = container.clientWidth * dpr;
+                canvas.height = container.clientHeight * dpr;
+                canvas.style.width = `${container.clientWidth}px`;
+                canvas.style.height = `${container.clientHeight}px`;
+                ctx.scale(dpr, dpr);
+                ctx.clearRect(0, 0, container.clientWidth, container.clientHeight);
+                ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+
+                const annotations = STEPS[currentStep].annotations || [];
+                annotations.forEach(anim => {
+                    const startPos = wordPositions[anim.startId ?? anim.targetId ?? 0];
+                    if (!startPos) return;
+                    
+                    ctx.strokeStyle = anim.color || '#000';
+                    ctx.fillStyle = anim.color || '#000';
+                    ctx.lineWidth = 2;
+
+                    if (anim.type === 'insert-text') {
+                        const x = startPos.left - 5;
+                        const y = startPos.drawTop - 10; 
+                        ctx.font = 'bold 12px "Inter"';
+                        ctx.textAlign = 'right';
+                        ctx.fillText(anim.text, x + 10, y + 10);
+                        ctx.beginPath();
+                        ctx.moveTo(startPos.left - 2, startPos.drawBottom);
+                        ctx.lineTo(startPos.left + 2, startPos.drawBottom);
+                        ctx.lineTo(startPos.left, startPos.drawTop + 2); 
+                        ctx.stroke();
+                    }
+                    else if (anim.type === 'symbol') {
+                        const endPos = anim.endId ? wordPositions[anim.endId] : startPos;
+                        const y = startPos.drawBottom + 2;
+                        
+                        if (anim.endId && anim.endId !== anim.startId) {
+                             const lines = {};
+                             for (let i = anim.startId; i <= anim.endId; i++) {
+                                 const p = wordPositions[i];
+                                 if (!p) continue;
+                                 const yKey = Math.round(p.drawBottom);
+                                 if (!lines[yKey]) lines[yKey] = { left: p.left, right: p.right };
+                                 else {
+                                     lines[yKey].left = Math.min(lines[yKey].left, p.left);
+                                     lines[yKey].right = Math.max(lines[yKey].right, p.right);
+                                 }
+                             }
+                             Object.values(lines).forEach(l => {
+                                 ctx.beginPath(); ctx.moveTo(l.left, y); ctx.lineTo(l.right, y); ctx.stroke();
+                             });
+                             const center = (startPos.left + endPos.right) / 2; 
+                             ctx.font = 'bold 14px "Inter"'; ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+                             ctx.fillText(anim.label || '', center, y + 2);
+                        } else {
+                            ctx.beginPath(); ctx.moveTo(startPos.left, y); ctx.lineTo(startPos.right, y); ctx.stroke();
+                            ctx.font = 'bold 14px "Inter"'; ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+                            ctx.fillText(anim.label || '', startPos.centerX, y + 2);
+                        }
+                    } 
+                    else if (anim.type === 'underline') {
+                        const lines = {};
+                        for (let i = anim.startId; i <= anim.endId; i++) {
+                            const p = wordPositions[i];
+                            if (!p) continue;
+                            const yKey = Math.round(p.drawBottom);
+                            if (!lines[yKey]) lines[yKey] = { left: p.left, right: p.right, bottom: p.drawBottom };
+                            else {
+                                lines[yKey].left = Math.min(lines[yKey].left, p.left);
+                                lines[yKey].right = Math.max(lines[yKey].right, p.right);
+                                lines[yKey].bottom = Math.max(lines[yKey].bottom, p.drawBottom);
+                            }
+                        }
+                        Object.values(lines).forEach((line) => {
+                            const y = line.bottom + 2; 
+                            ctx.beginPath(); 
+                            if(anim.label && (anim.label.includes('節') || anim.label.includes('受動') || anim.label.includes('副詞') || anim.label.includes('修飾') || anim.label.includes('原形'))) ctx.setLineDash([2, 2]);
+                            ctx.moveTo(line.left, y); ctx.lineTo(line.right, y); ctx.stroke();
+                        });
+                        ctx.setLineDash([]);
+                        if (anim.label) {
+                            const endPos = wordPositions[anim.endId];
+                            if(endPos) {
+                                ctx.font = '10px "Inter"'; ctx.textAlign = 'left'; ctx.textBaseline = 'top';
+                                ctx.fillText(anim.label, endPos.right + 2, endPos.drawBottom); 
+                            }
+                        }
+                    } 
+                    else if (anim.type === 'arrow') {
+                        const from = wordPositions[anim.fromId];
+                        const to = wordPositions[anim.toId];
+                        if (from && to) {
+                            const sx = from.centerX, sy = from.drawTop, ex = to.centerX, ey = to.drawTop;
+                            const cpY = Math.min(sy, ey) - 15;
+                            ctx.beginPath(); ctx.moveTo(sx, sy - 2); ctx.quadraticCurveTo((sx+ex)/2, cpY, ex, ey - 2); ctx.stroke();
+                            const angle = Math.atan2(ey - 2 - cpY, ex - (sx+ex)/2);
+                            ctx.beginPath(); ctx.moveTo(ex, ey - 2);
+                            ctx.lineTo(ex - 5 * Math.cos(angle - Math.PI/6), ey - 2 - 5 * Math.sin(angle - Math.PI/6));
+                            ctx.lineTo(ex - 5 * Math.cos(angle + Math.PI/6), ey - 2 - 5 * Math.sin(angle + Math.PI/6));
+                            ctx.fill();
+                        }
+                    } 
+                    else if (anim.type.startsWith('bracket')) {
+                        const endPos = wordPositions[anim.endId] || startPos;
+                        const isMultiLine = Math.abs(startPos.drawTop - endPos.drawTop) > 20;
+
+                        if (isMultiLine) {
+                            const top1 = startPos.drawTop - 2;
+                            const bottom1 = startPos.drawBottom + 2;
+                            const left1 = startPos.left - 3;
+                            ctx.beginPath();
+                            ctx.moveTo(left1 + 4, top1); ctx.lineTo(left1, top1); ctx.lineTo(left1, bottom1); ctx.lineTo(left1 + 4, bottom1);
+                            ctx.stroke();
+
+                            const top2 = endPos.drawTop - 2;
+                            const bottom2 = endPos.drawBottom + 2;
+                            const right2 = endPos.right + 3;
+                            
+                            if (anim.type !== 'bracket-start') {
+                                ctx.beginPath();
+                                ctx.moveTo(right2 - 4, top2); ctx.lineTo(right2, top2); ctx.lineTo(right2, bottom2); ctx.lineTo(right2 - 4, bottom2);
+                                ctx.stroke();
+                            }
+                        } else {
+                            const top = Math.min(startPos.drawTop, endPos.drawTop) - 2;
+                            const bottom = Math.max(startPos.drawBottom, endPos.drawBottom) + 2;
+                            const left = startPos.left - 3;
+                            const right = endPos.right + 3;
+                            ctx.beginPath();
+                            ctx.moveTo(left + 4, top); ctx.lineTo(left, top); ctx.lineTo(left, bottom); ctx.lineTo(left + 4, bottom);
+                            ctx.stroke();
+                            if (anim.type !== 'bracket-start') {
+                                ctx.beginPath();
+                                ctx.moveTo(right - 4, top); ctx.lineTo(right, top); ctx.lineTo(right, bottom); ctx.lineTo(right - 4, bottom);
+                                ctx.stroke();
+                            }
+                        }
+                        if (anim.label) {
+                             ctx.font = '11px "Inter"'; ctx.textAlign = 'left';
+                             ctx.fillText(anim.label, startPos.left - 3, startPos.drawTop - 12);
+                        }
+                    }
+                });
+            };
+
+            const nextStep = () => { if (currentStep < STEPS.length - 1) setCurrentStep(c => c + 1); };
+            const prevStep = () => { if (currentStep > 0) setCurrentStep(c => c - 1); };
+
+            const ChevronRight = () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="9 18 15 12 9 6"></polyline></svg>;
+            const ChevronLeft = () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="15 18 9 12 15 6"></polyline></svg>;
+            const RefreshCw = () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M23 4v6h-6"></path><path d="M1 20v-6h6"></path><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></svg>;
+
+            return (
+                <div className="max-w-4xl mx-auto p-4 md:p-6 min-h-screen pb-32">
+                    <div className="mb-6 border-b pb-4 flex justify-between items-center sticky top-0 bg-slate-50 z-20 pt-2">
+                        <div>
+                            <h1 className="text-xl md:text-2xl font-bold text-slate-800">英検準2級 長文解釈 (Salt - Para 2)</h1>
+                            <p className="text-slate-500 text-xs md:text-sm">{SOURCE_CREDIT}</p>
+                        </div>
+                        <div className="bg-white px-3 py-1 rounded border shadow-sm text-sm font-mono">{currentStep + 1} / {STEPS.length}</div>
+                    </div>
+                    <div ref={containerRef} className="relative bg-white rounded-xl shadow-lg border border-slate-200 p-6 md:p-8 mb-4 overflow-hidden">
+                        <canvas ref={canvasRef} className="absolute top-0 left-0 w-full h-full pointer-events-none z-10" />
+                        <div className="relative z-0 text-lg md:text-xl font-serif text-slate-800 tracking-wide" style={{ lineHeight: '1.8' }}>
+                            {WORDS.map((word, i) => (
+                                <span key={i} ref={el => { wordRefs.current[i] = el; }} className={`inline-block transition-colors duration-300 ${(STEPS[currentStep].highlightIds || []).includes(i) ? 'bg-yellow-200/70 rounded-sm' : ''}`} style={{ paddingRight: '0.3em', lineHeight: '1.35' }}>{word.text}</span>
+                            ))}
+                        </div>
+                    </div>
+                    <div className="mb-2"><span className="text-xs font-bold text-slate-400 uppercase pl-1">Translation</span></div>
+                    <div className="bg-slate-100 rounded-xl border border-slate-200 p-5 mb-6 text-base md:text-lg leading-loose font-sans text-slate-700">
+                        {JP_CHUNKS.map((chunk) => {
+                            const isActive = (STEPS[currentStep].jpHighlightIds || []).includes(chunk.id);
+                            return (
+                                <span key={chunk.id} className={`transition-all duration-300 inline-block px-1 rounded-sm ${isActive ? 'bg-white shadow-sm font-bold text-slate-900' : 'opacity-50'}`} style={{ borderBottom: isActive ? `2px solid ${STEPS[currentStep].mainColor}` : '2px solid transparent' }}>{chunk.text}</span>
+                            );
+                        })}
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sticky bottom-4 z-30">
+                        <div className="md:col-span-1 flex flex-row md:flex-col gap-2 justify-between md:justify-start">
+                            <div className="flex gap-2 w-full">
+                                <button onClick={prevStep} disabled={currentStep === 0} className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 disabled:opacity-50 shadow-sm"><ChevronLeft/> Prev</button>
+                                <button onClick={nextStep} disabled={currentStep === STEPS.length - 1} className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 shadow-md">Next <ChevronRight/></button>
+                            </div>
+                            <button onClick={() => setCurrentStep(0)} className="hidden md:flex items-center gap-2 text-slate-500 text-sm p-2 hover:bg-slate-100 rounded self-start"><RefreshCw/> Reset</button>
+                        </div>
+                        <div className="md:col-span-2 bg-slate-800 text-white p-5 rounded-lg shadow-xl border-l-4" style={{ borderLeftColor: STEPS[currentStep].mainColor || '#3b82f6' }}>
+                            <h3 className="font-bold mb-1 text-blue-200">{STEPS[currentStep].title}</h3>
+                            <p className="text-slate-300 text-sm md:text-base">{STEPS[currentStep].description}</p>
+                        </div>
+                    </div>
+                </div>
+            );
+        }
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<EnglishParser />);
+    </script>
+</body>
+</html>
