@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>English Visualizer</title>
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Noto+Sans+JP:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', 'Noto Sans JP', sans-serif; }
+        .word-container {
+            display: inline-flex; flex-direction: column; justify-content: flex-end; position: relative; vertical-align: bottom;
+        }
+        .word-span {
+            padding-top: 0.35rem; padding-bottom: 0.35rem;
+            padding-left: 0.2rem; padding-right: 0.4rem; 
+            margin: 0; display: inline-block; line-height: 1.5;
+            box-decoration-break: clone; -webkit-box-decoration-break: clone;
+        }
+        .fade-in { animation: fadeIn 0.5s ease-in forwards; opacity: 0; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+    </style>
+</head>
+<body class="bg-amber-50 text-slate-900 min-h-screen">
+    <div id="root"></div>    <script type="text/babel">
+        // ==========================================
+        // /* === データ生成セクション (ここをAIが生成) === */
+        // ==========================================
+        
+        const TITLE = "Fun at the Beach (Part 2)";
+        const SOURCE_CREDIT = "出典: 英検4級 2024年 第3回 大問4C";
+
+        // 全文 (第2パラグラフ)
+        const RAW_SENTENCE = "The next day, Jill went for a walk by the beach at noon. She met a woman with long hair there. Jill asked her, “Do you like fishing?” The woman said, “No, but I love surfing.” Jill wanted to try surfing. The woman said, “You should take surfing lessons first.”";
+
+        // 単語ごとの役割定義
+        const WORD_ROLES = [
+            // The next day, Jill went for a walk by the beach at noon.
+            'M', 'M', 'M', 'S', 'V', 'M', 'M', 'M', 'M', 'M', 'M', 'M', 'M',
+            // She met a woman with long hair there.
+            'S', 'V', 'O', 'O', 'M', 'M', 'M', 'M',
+            // Jill asked her, “Do you like fishing?”
+            'S', 'V', 'O', 'V', 'S', 'V', 'O',
+            // The woman said, “No, but I love surfing.”
+            'S', 'S', 'V', 'O', 'CONN', 'S', 'V', 'O',
+            // Jill wanted to try surfing.
+            'S', 'V', 'O', 'O', 'O',
+            // The woman said, “You should take surfing lessons first.”
+            'S', 'S', 'V', 'S', 'V', 'V', 'O', 'O', 'M'
+        ];
+
+        const WORDS = RAW_SENTENCE.split(' ').map((word, index) => ({
+            id: index, text: word, role: WORD_ROLES[index] || 'OTHER'
+        }));
+
+        // 日本語チャンク訳 (直読直解)
+        const JP_CHUNKS = [
+            // S1
+            { ids: [0,1,2], text: "その翌日", role: "M" },
+            { ids: [3], text: "ジルは", role: "S" },
+            { ids: [4], text: "行きました", role: "V" },
+            { ids: [5,6,7], text: "散歩に", role: "M" }, // for a walk
+            { ids: [8,9,10], text: "ビーチのそばを", role: "M" },
+            { ids: [11,12], text: "正午に", role: "M" },
+            // S2
+            { ids: [13], text: "彼女は", role: "S" },
+            { ids: [14], text: "会いました", role: "V" },
+            { ids: [15,16], text: "ある女性に", role: "O" },
+            { ids: [17,18,19], text: "長い髪をした", role: "M" },
+            { ids: [20], text: "そこで", role: "M" },
+            // S3
+            { ids: [21], text: "ジルは", role: "S" },
+            { ids: [22], text: "尋ねました", role: "V" },
+            { ids: [23], text: "彼女に", role: "O" },
+            { ids: [24,25,26,27], text: "「あなたは釣りが好きですか？」", role: "O" },
+            // S4
+            { ids: [28,29], text: "その女性は", role: "S" },
+            { ids: [30], text: "言いました", role: "V" },
+            { ids: [31], text: "「いいえ、", role: "O" },
+            { ids: [32], text: "でも", role: "CONN" },
+            { ids: [33], text: "私は", role: "S" },
+            { ids: [34], text: "大好きです", role: "V" },
+            { ids: [35], text: "サーフィンが」", role: "O" },
+            // S5
+            { ids: [36], text: "ジルは", role: "S" },
+            { ids: [37], text: "～したくなりました", role: "V" }, // wanted
+            { ids: [38,39,40], text: "サーフィンを試してみることを", role: "O" }, // to try surfing
+            // S6
+            { ids: [41,42], text: "その女性は", role: "S" },
+            { ids: [43], text: "言いました", role: "V" },
+            { ids: [44], text: "「あなたは", role: "S" },
+            { ids: [45,46], text: "受けるべきです", role: "V" }, // should take
+            { ids: [47,48], text: "サーフィンのレッスンを", role: "O" },
+            { ids: [49], text: "まず最初に」", role: "M" }
+        ];
+
+        // 学習ステップ
+        const STEPS = [
+            {
+                title: "#1 翌日の散歩 (Action)",
+                description: "「went for a walk」で「散歩に行った」という熟語表現です。",
+                highlightIds: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+                annotations: [
+                    { type: 'label', wordId: 0, text: 'いつ' },
+                    { type: 'label', wordId: 3, text: 'だれが' },
+                    { type: 'label', wordId: 4, text: 'どうする' },
+                    { type: 'underline', startId: 5, endId: 7 }
+                ]
+            },
+            {
+                title: "#2 出会い (Meeting)",
+                description: "「with long hair」は「長い髪をした」という意味で、前の「woman」を詳しく説明しています。",
+                highlightIds: [13, 14, 15, 16, 17, 18, 19, 20],
+                annotations: [
+                    { type: 'label', wordId: 13, text: 'だれが' },
+                    { type: 'label', wordId: 14, text: 'どうする' },
+                    { type: 'label', wordId: 16, text: 'だれに' },
+                    { type: 'underline', startId: 17, endId: 19 }
+                ]
+            },
+            {
+                title: "#3 質問 (Question)",
+                description: "ジルは女性に釣りが好きかどうか尋ねました。",
+                highlightIds: [21, 22, 23, 24, 25, 26, 27],
+                annotations: [
+                    { type: 'label', wordId: 21, text: 'だれが' },
+                    { type: 'label', wordId: 22, text: 'どうする' },
+                    { type: 'label', wordId: 23, text: 'だれに' },
+                ]
+            },
+            {
+                title: "#4 返答 (Answer)",
+                description: "女性は釣りではなく、サーフィンが好きだと言いました。",
+                highlightIds: [28, 29, 30, 31, 32, 33, 34, 35],
+                annotations: [
+                    { type: 'label', wordId: 29, text: 'だれが' },
+                    { type: 'label', wordId: 30, text: 'どうする' },
+                    { type: 'label', wordId: 34, text: 'どうする' },
+                ]
+            },
+            {
+                title: "#5 ジルの願望 (Desire)",
+                description: "「wanted to try」で「試してみたかった」という意味です。",
+                highlightIds: [36, 37, 38, 39, 40],
+                annotations: [
+                    { type: 'label', wordId: 36, text: 'だれが' },
+                    { type: 'label', wordId: 37, text: 'どうする' },
+                    { type: 'underline', startId: 38, endId: 40 }
+                ]
+            },
+            {
+                title: "#6 アドバイス (Advice)",
+                description: "「should take」は「受けるべきだ（受けたほうがいい）」というアドバイスを表します。",
+                highlightIds: [41, 42, 43, 44, 45, 46, 47, 48, 49],
+                annotations: [
+                    { type: 'label', wordId: 42, text: 'だれが' },
+                    { type: 'label', wordId: 43, text: 'どうする' },
+                    { type: 'label', wordId: 44, text: 'だれが' },
+                    { type: 'label', wordId: 46, text: 'どうする' },
+                    { type: 'underline', startId: 45, endId: 46 }
+                ]
+            }
+        ];
+
+        // ==========================================
+        // /* === ロジックセクション (固定・変更禁止) === */
+        // ==========================================
+        const ROLE_STYLES = {
+            S: { color: '#1e40af', bg: '#dbeafe', label: 'S (だれが)' },
+            V: { color: '#b91c1c', bg: '#fee2e2', label: 'V (どうする)' },
+            O: { color: '#047857', bg: '#d1fae5', label: 'O (なにを)' },
+            C: { color: '#047857', bg: '#d1fae5', label: 'C (どんなだ/補語)' },
+            M: { color: '#b45309', bg: '#fef3c7', label: 'M (いつ・どこ・修飾)' },
+            CONN: { color: '#7e22ce', bg: '#f3e8ff', label: 'CONN (つなぎ)' },
+            OTHER: { color: '#334155', bg: 'transparent', label: '' }
+        };
+
+        const App = () => {
+            const [currentStepIndex, setCurrentStepIndex] = React.useState(0);
+            const containerRef = React.useRef(null);
+            
+            const currentStep = STEPS[currentStepIndex];
+            const activeIds = currentStep.highlightIds || [];
+
+            const nextStep = () => {
+                if (currentStepIndex < STEPS.length - 1) setCurrentStepIndex(prev => prev + 1);
+            };
+
+            const prevStep = () => {
+                if (currentStepIndex > 0) setCurrentStepIndex(prev => prev - 1);
+            };
+
+            const getActiveJpChunks = () => {
+                return JP_CHUNKS.filter(chunk => 
+                    chunk.ids.some(id => activeIds.includes(id))
+                );
+            };
+
+            React.useEffect(() => {
+                if (containerRef.current) {
+                    const activeElement = containerRef.current.querySelector('[data-active="true"]');
+                    if (activeElement) {
+                        activeElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    }
+                }
+            }, [currentStepIndex]);
+
+            const getWordStyle = (role, isActive) => {
+                const style = ROLE_STYLES[role] || ROLE_STYLES.OTHER;
+                if (!isActive) return { color: '#cbd5e1', backgroundColor: 'transparent' };
+                return {
+                    color: style.color,
+                    backgroundColor: style.bg,
+                };
+            };
+
+            return (
+                <div className="max-w-4xl mx-auto p-4 md:p-8 font-sans">
+                    <header className="mb-6 flex justify-between items-end border-b border-slate-200 pb-4 sticky top-0 bg-amber-50 z-20">
+                        <div>
+                            <h1 className="text-xl md:text-2xl font-bold text-slate-800 flex items-center gap-2">
+                                <span className="bg-amber-400 text-white px-2 py-1 rounded text-sm">Learning</span>
+                                {TITLE}
+                            </h1>
+                            <p className="text-xs md:text-sm text-slate-500 mt-1">{SOURCE_CREDIT}</p>
+                        </div>
+                        <div className="text-sm font-semibold text-slate-500 whitespace-nowrap ml-4">
+                            Step {currentStepIndex + 1} / {STEPS.length}
+                        </div>
+                    </header>
+
+                    <main className="bg-white rounded-xl shadow-lg p-6 md:p-10 mb-8 relative overflow-hidden h-[400px] overflow-y-auto" id="text-container">
+                        <div className="relative leading-[2.8] text-2xl font-medium flex flex-wrap gap-y-4" ref={containerRef}>
+                            {WORDS.map((word, index) => {
+                                const isActive = activeIds.includes(word.id);
+                                const style = getWordStyle(word.role, isActive);
+                                
+                                const annotationsForWord = currentStep.annotations ? currentStep.annotations.filter(a => a.wordId === word.id) : [];
+                                const labelAnnotation = annotationsForWord.find(a => a.type === 'label');
+                                const label = (isActive && labelAnnotation) ? labelAnnotation.text : null;
+                                const isUnderlined = isActive && currentStep.annotations && currentStep.annotations.some(a => a.type === 'underline' && word.id >= a.startId && word.id <= a.endId);
+
+                                const isPrevActive = activeIds.includes(index - 1);
+                                const isNextActive = activeIds.includes(index + 1);
+                                const isPrevSameRole = index > 0 && WORDS[index - 1].role === word.role;
+                                const isNextSameRole = index < WORDS.length - 1 && WORDS[index + 1].role === word.role;
+
+                                const connectLeft = isActive && isPrevActive && isPrevSameRole;
+                                const connectRight = isActive && isNextActive && isNextSameRole;
+
+                                let radiusClasses = "rounded-lg";
+
+                                if (isActive) {
+                                    if (connectLeft && connectRight) {
+                                        radiusClasses = "rounded-none";
+                                    } else if (connectLeft) {
+                                        radiusClasses = "rounded-r-lg rounded-l-none";
+                                    } else if (connectRight) {
+                                        radiusClasses = "rounded-l-lg rounded-r-none";
+                                    }
+                                }
+
+                                return (
+                                    <div 
+                                        key={word.id} 
+                                        className="word-container group"
+                                        data-active={isActive}
+                                    >
+                                        {label && (
+                                            <span 
+                                                className="absolute -top-6 left-1/2 transform -translate-x-1/2 text-[10px] font-bold px-1.5 py-0.5 rounded shadow-sm whitespace-nowrap z-30 fade-in"
+                                                style={{ backgroundColor: style.backgroundColor !== 'transparent' ? ROLE_STYLES[word.role]?.color : '#64748b', color: 'white' }}
+                                            >
+                                                {label}
+                                            </span>
+                                        )}
+                                        <span 
+                                            className={`word-span transition-all duration-300 ${isActive ? 'z-10 font-bold' : 'opacity-40 grayscale'} ${radiusClasses}`}
+                                            style={style}
+                                        >
+                                            {word.text}
+                                        </span>
+                                        {isUnderlined && (
+                                            <div className="absolute bottom-1 left-0 right-0 h-0.5 bg-slate-400 opacity-50 fade-in"></div>
+                                        )}
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    </main>
+
+                    <section className="grid md:grid-cols-3 gap-6">
+                        <div className="md:col-span-1 space-y-4">
+                            <div className="flex gap-2">
+                                <button 
+                                    onClick={prevStep} 
+                                    disabled={currentStepIndex === 0}
+                                    className="flex-1 px-4 py-3 bg-white border border-slate-300 rounded-lg text-slate-600 font-semibold hover:bg-slate-50 disabled:opacity-50 transition shadow-sm"
+                                >
+                                    ← 戻る
+                                </button>
+                                <button 
+                                    onClick={nextStep} 
+                                    disabled={currentStepIndex === STEPS.length - 1}
+                                    className="flex-1 px-4 py-3 bg-indigo-600 rounded-lg text-white font-semibold hover:bg-indigo-700 disabled:opacity-50 shadow-md transition"
+                                >
+                                    次へ →
+                                </button>
+                            </div>
+                            
+                            <div className="bg-white p-5 rounded-lg border border-slate-200 shadow-sm" key={currentStepIndex}>
+                                <h3 className="font-bold text-lg text-indigo-900 mb-2">{currentStep.title}</h3>
+                                <p className="text-slate-600 text-sm leading-relaxed">
+                                    {currentStep.description}
+                                </p>
+                            </div>
+                        </div>
+
+                        <div className="md:col-span-2 bg-white p-5 rounded-lg border border-slate-200 shadow-sm min-h-[160px]">
+                            <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">語順で理解する (直読直解)</h4>
+                            <div className="flex flex-wrap gap-2 text-lg items-end">
+                                {getActiveJpChunks().length > 0 ? (
+                                    getActiveJpChunks().map((chunk, i) => (
+                                        <div key={i} className="flex flex-col items-center fade-in" style={{ animationDelay: `${i * 0.05}s` }}>
+                                            <span 
+                                                className="px-3 py-1 rounded text-slate-800 font-medium border-b-2 text-base md:text-lg"
+                                                style={{ 
+                                                    backgroundColor: ROLE_STYLES[chunk.role]?.bg || '#f1f5f9',
+                                                    borderColor: ROLE_STYLES[chunk.role]?.color || '#cbd5e1'
+                                                }}
+                                            >
+                                                {chunk.text}
+                                            </span>
+                                            <span className="text-[10px] font-bold mt-1 text-slate-400">
+                                                {ROLE_STYLES[chunk.role]?.label || ''}
+                                            </span>
+                                        </div>
+                                    ))
+                                ) : (
+                                    <p className="text-slate-400 italic opacity-50 transition-opacity duration-300">
+                                        ...
+                                    </p>
+                                )}
+                            </div>
+                        </div>
+                    </section>
+                </div>
+            );
+        };
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
