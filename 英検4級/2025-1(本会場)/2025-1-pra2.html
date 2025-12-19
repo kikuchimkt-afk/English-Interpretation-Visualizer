@@ -1,0 +1,371 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>English Visualizer</title>
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Noto+Sans+JP:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', 'Noto Sans JP', sans-serif; }
+        .word-container {
+            display: inline-flex; flex-direction: column; justify-content: flex-end; position: relative; vertical-align: bottom;
+        }
+        .word-span {
+            padding-top: 0.35rem; padding-bottom: 0.35rem;
+            padding-left: 0.2rem; padding-right: 0.4rem; 
+            margin: 0; display: inline-block; line-height: 1.5;
+            box-decoration-break: clone; -webkit-box-decoration-break: clone;
+        }
+        .fade-in { animation: fadeIn 0.5s ease-in forwards; opacity: 0; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+    </style>
+</head>
+<body class="bg-amber-50 text-slate-900 min-h-screen">
+    <div id="root"></div>    <script type="text/babel">
+        // ==========================================
+        // /* === データ生成セクション (ここをAIが生成) === */
+        // ==========================================
+        
+        const TITLE = "An Artist’s Dream (Part 2)";
+        const SOURCE_CREDIT = "出典: 英検4級 2025年第1回 大問4C";
+
+        // 第2パラグラフ
+        const RAW_SENTENCE = "One day, Daniel decided to take part in an art contest at a famous art college. Every year, the winner of the contest gets money as a prize, and three teachers at the college choose the winner. Many people took part in the contest, so Daniel was nervous. He painted a picture of his house for the contest.";
+
+        // 単語データ定義
+        const WORDS_DATA = [
+            // One day, Daniel decided to take part in an art contest at a famous art college.
+            { t: "One", r: "M" }, { t: "day,", r: "M" },
+            { t: "Daniel", r: "S" }, { t: "decided", r: "V" },
+            { t: "to", r: "O" }, { t: "take", r: "O" }, { t: "part", r: "O" }, // to take part (参加すること)
+            { t: "in", r: "M" }, { t: "an", r: "M" }, { t: "art", r: "M" }, { t: "contest", r: "M" },
+            { t: "at", r: "M" }, { t: "a", r: "M" }, { t: "famous", r: "M" }, { t: "art", r: "M" }, { t: "college.", r: "M" },
+
+            // Every year, the winner of the contest gets money as a prize,
+            { t: "Every", r: "M" }, { t: "year,", r: "M" },
+            { t: "the", r: "S" }, { t: "winner", r: "S" },
+            { t: "of", r: "M" }, { t: "the", r: "M" }, { t: "contest", r: "M" },
+            { t: "gets", r: "V" }, { t: "money", r: "O" },
+            { t: "as", r: "M" }, { t: "a", r: "M" }, { t: "prize,", r: "M" },
+
+            // and three teachers at the college choose the winner.
+            { t: "and", r: "CONN" },
+            { t: "three", r: "S" }, { t: "teachers", r: "S" },
+            { t: "at", r: "M" }, { t: "the", r: "M" }, { t: "college", r: "M" },
+            { t: "choose", r: "V" }, { t: "the", r: "O" }, { t: "winner.", r: "O" },
+
+            // Many people took part in the contest, so Daniel was nervous.
+            { t: "Many", r: "S" }, { t: "people", r: "S" },
+            { t: "took", r: "V" }, { t: "part", r: "O" },
+            { t: "in", r: "M" }, { t: "the", r: "M" }, { t: "contest,", r: "M" },
+            { t: "so", r: "CONN" },
+            { t: "Daniel", r: "S" }, { t: "was", r: "V" }, { t: "nervous.", r: "C" },
+
+            // He painted a picture of his house for the contest.
+            { t: "He", r: "S" }, { t: "painted", r: "V" },
+            { t: "a", r: "O" }, { t: "picture", r: "O" },
+            { t: "of", r: "M" }, { t: "his", r: "M" }, { t: "house", r: "M" },
+            { t: "for", r: "M" }, { t: "the", r: "M" }, { t: "contest.", r: "M" }
+        ];
+
+        const WORDS = WORDS_DATA.map((item, index) => ({
+            id: index, text: item.t, role: item.r
+        }));
+
+        // 日本語チャンク訳 (直読直解)
+        const JP_CHUNKS = [
+            // Sentence 1
+            { ids: [0,1], text: "ある日", role: "M" },
+            { ids: [2], text: "ダニエルは", role: "S" },
+            { ids: [3], text: "決めました", role: "V" },
+            { ids: [4,5,6], text: "参加することを", role: "O" }, // to take part
+            { ids: [7,8,9,10], text: "芸術コンテストに", role: "M" },
+            { ids: [11,12,13,14,15], text: "有名な芸術大学での", role: "M" },
+            
+            // Sentence 2-1
+            { ids: [16,17], text: "毎年", role: "M" },
+            { ids: [18,19], text: "その勝者は", role: "S" },
+            { ids: [20,21,22], text: "コンテストの", role: "M" },
+            { ids: [23], text: "手に入れます", role: "V" },
+            { ids: [24], text: "お金を", role: "O" },
+            { ids: [25,26,27], text: "賞品として", role: "M" },
+            
+            // Sentence 2-2
+            { ids: [28], text: "そして", role: "CONN" },
+            { ids: [29,30], text: "3人の先生が", role: "S" },
+            { ids: [31,32,33], text: "大学の", role: "M" },
+            { ids: [34], text: "選びます", role: "V" },
+            { ids: [35,36], text: "勝者を", role: "O" },
+
+            // Sentence 3
+            { ids: [37,38], text: "多くの人々が", role: "S" },
+            { ids: [39,40], text: "参加しました（役割を果たしました）", role: "V" }, // took part
+            { ids: [41,42,43], text: "コンテストに", role: "M" },
+            { ids: [44], text: "だから", role: "CONN" },
+            { ids: [45], text: "ダニエルは", role: "S" },
+            { ids: [46], text: "でした", role: "V" },
+            { ids: [47], text: "緊張して", role: "C" },
+
+            // Sentence 4
+            { ids: [48], text: "彼は", role: "S" },
+            { ids: [49], text: "描きました", role: "V" },
+            { ids: [50,51], text: "絵を", role: "O" },
+            { ids: [52,53,54], text: "自分の家の", role: "M" },
+            { ids: [55,56,57], text: "コンテストのために", role: "M" }
+        ];
+
+        // 学習ステップ
+        const STEPS = [
+            {
+                title: "#1 決心",
+                description: "ある日、ダニエルは有名な大学でのコンテストに参加することにしました。",
+                highlightIds: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15],
+                annotations: [
+                    { type: 'label', wordId: 2, text: 'だれが' },
+                    { type: 'label', wordId: 3, text: 'どうする' },
+                    { type: 'underline', startId: 4, endId: 6 }, // to take part
+                    { type: 'label', wordId: 5, text: 'なにを' }
+                ]
+            },
+            {
+                title: "#2 コンテストの賞",
+                description: "毎年、コンテストの勝者はお金を賞品としてもらえます。",
+                highlightIds: [16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27],
+                annotations: [
+                    { type: 'label', wordId: 19, text: 'だれが' },
+                    { type: 'underline', startId: 20, endId: 22 }, // of the contest
+                    { type: 'label', wordId: 23, text: 'どうする' },
+                    { type: 'label', wordId: 24, text: 'なにを' }
+                ]
+            },
+            {
+                title: "#3 審査員",
+                description: "そして、大学の3人の先生が勝者を選びます。",
+                highlightIds: [28, 29, 30, 31, 32, 33, 34, 35, 36],
+                annotations: [
+                    { type: 'label', wordId: 30, text: 'だれが' },
+                    { type: 'underline', startId: 31, endId: 33 }, // at the college
+                    { type: 'label', wordId: 34, text: 'どうする' },
+                    { type: 'label', wordId: 36, text: 'だれを' }
+                ]
+            },
+            {
+                title: "#4 緊張",
+                description: "多くの人が参加したので、ダニエルは緊張しました。",
+                highlightIds: [37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47],
+                annotations: [
+                    { type: 'label', wordId: 38, text: 'だれが' },
+                    { type: 'label', wordId: 39, text: 'どうする' },
+                    { type: 'label', wordId: 44, text: 'つなぎ' },
+                    { type: 'label', wordId: 45, text: 'だれが' },
+                    { type: 'label', wordId: 46, text: 'どうする' },
+                    { type: 'label', wordId: 47, text: 'どんなだ' }
+                ]
+            },
+            {
+                title: "#5 作品",
+                description: "彼はコンテストのために自分の家の絵を描きました。",
+                highlightIds: [48, 49, 50, 51, 52, 53, 54, 55, 56, 57],
+                annotations: [
+                    { type: 'label', wordId: 48, text: 'だれが' },
+                    { type: 'label', wordId: 49, text: 'どうする' },
+                    { type: 'label', wordId: 51, text: 'なにを' }
+                ]
+            }
+        ];
+
+        // ==========================================
+        // /* === ロジックセクション (固定・変更禁止) === */
+        // ==========================================
+        const ROLE_STYLES = {
+            S: { color: '#1e40af', bg: '#dbeafe', label: 'S (だれが)' },
+            V: { color: '#b91c1c', bg: '#fee2e2', label: 'V (どうする)' },
+            O: { color: '#047857', bg: '#d1fae5', label: 'O (なにを)' },
+            C: { color: '#047857', bg: '#d1fae5', label: 'C (どんなだ)' },
+            M: { color: '#b45309', bg: '#fef3c7', label: 'M (いつ・どこ)' },
+            CONN: { color: '#7e22ce', bg: '#f3e8ff', label: 'CONN (つなぎ)' },
+            OTHER: { color: '#334155', bg: 'transparent', label: '' }
+        };
+
+        const App = () => {
+            const [currentStepIndex, setCurrentStepIndex] = React.useState(0);
+            const containerRef = React.useRef(null);
+            
+            const currentStep = STEPS[currentStepIndex];
+            const activeIds = currentStep.highlightIds || [];
+
+            const nextStep = () => {
+                if (currentStepIndex < STEPS.length - 1) setCurrentStepIndex(prev => prev + 1);
+            };
+
+            const prevStep = () => {
+                if (currentStepIndex > 0) setCurrentStepIndex(prev => prev - 1);
+            };
+
+            const getActiveJpChunks = () => {
+                return JP_CHUNKS.filter(chunk => 
+                    chunk.ids.some(id => activeIds.includes(id))
+                );
+            };
+
+            React.useEffect(() => {
+                if (containerRef.current) {
+                    const activeElement = containerRef.current.querySelector('[data-active="true"]');
+                    if (activeElement) {
+                        activeElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    }
+                }
+            }, [currentStepIndex]);
+
+            const getWordStyle = (role, isActive) => {
+                const style = ROLE_STYLES[role] || ROLE_STYLES.OTHER;
+                if (!isActive) return { color: '#cbd5e1', backgroundColor: 'transparent' };
+                return {
+                    color: style.color,
+                    backgroundColor: style.bg,
+                };
+            };
+
+            return (
+                <div className="max-w-4xl mx-auto p-4 md:p-8 font-sans">
+                    <header className="mb-6 flex justify-between items-end border-b border-slate-200 pb-4 sticky top-0 bg-amber-50 z-20">
+                        <div>
+                            <h1 className="text-xl md:text-2xl font-bold text-slate-800 flex items-center gap-2">
+                                <span className="bg-amber-400 text-white px-2 py-1 rounded text-sm">Learning</span>
+                                {TITLE}
+                            </h1>
+                            <p className="text-xs md:text-sm text-slate-500 mt-1">{SOURCE_CREDIT}</p>
+                        </div>
+                        <div className="text-sm font-semibold text-slate-500 whitespace-nowrap ml-4">
+                            Step {currentStepIndex + 1} / {STEPS.length}
+                        </div>
+                    </header>
+
+                    <main className="bg-white rounded-xl shadow-lg p-6 md:p-10 mb-8 relative overflow-hidden h-[400px] overflow-y-auto" id="text-container">
+                        <div className="relative leading-[2.8] text-2xl font-medium flex flex-wrap gap-y-4" ref={containerRef}>
+                            {WORDS.map((word, index) => {
+                                const isActive = activeIds.includes(word.id);
+                                const style = getWordStyle(word.role, isActive);
+                                
+                                const annotationsForWord = currentStep.annotations ? currentStep.annotations.filter(a => a.wordId === word.id) : [];
+                                const labelAnnotation = annotationsForWord.find(a => a.type === 'label');
+                                const label = (isActive && labelAnnotation) ? labelAnnotation.text : null;
+                                const isUnderlined = isActive && currentStep.annotations && currentStep.annotations.some(a => a.type === 'underline' && word.id >= a.startId && word.id <= a.endId);
+
+                                const isPrevActive = activeIds.includes(index - 1);
+                                const isNextActive = activeIds.includes(index + 1);
+                                const isPrevSameRole = index > 0 && WORDS[index - 1].role === word.role;
+                                const isNextSameRole = index < WORDS.length - 1 && WORDS[index + 1].role === word.role;
+
+                                const connectLeft = isActive && isPrevActive && isPrevSameRole;
+                                const connectRight = isActive && isNextActive && isNextSameRole;
+
+                                let radiusClasses = "rounded-lg";
+
+                                if (isActive) {
+                                    if (connectLeft && connectRight) {
+                                        radiusClasses = "rounded-none";
+                                    } else if (connectLeft) {
+                                        radiusClasses = "rounded-r-lg rounded-l-none";
+                                    } else if (connectRight) {
+                                        radiusClasses = "rounded-l-lg rounded-r-none";
+                                    }
+                                }
+
+                                return (
+                                    <div 
+                                        key={word.id} 
+                                        className="word-container group"
+                                        data-active={isActive}
+                                    >
+                                        {label && (
+                                            <span 
+                                                className="absolute -top-6 left-1/2 transform -translate-x-1/2 text-[10px] font-bold px-1.5 py-0.5 rounded shadow-sm whitespace-nowrap z-30 fade-in"
+                                                style={{ backgroundColor: style.backgroundColor !== 'transparent' ? ROLE_STYLES[word.role]?.color : '#64748b', color: 'white' }}
+                                            >
+                                                {label}
+                                            </span>
+                                        )}
+                                        <span 
+                                            className={`word-span transition-all duration-300 ${isActive ? 'z-10 font-bold' : 'opacity-40 grayscale'} ${radiusClasses}`}
+                                            style={style}
+                                        >
+                                            {word.text}
+                                        </span>
+                                        {isUnderlined && (
+                                            <div className="absolute bottom-1 left-0 right-0 h-0.5 bg-slate-400 opacity-50 fade-in"></div>
+                                        )}
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    </main>
+
+                    <section className="grid md:grid-cols-3 gap-6">
+                        <div className="md:col-span-1 space-y-4">
+                            <div className="flex gap-2">
+                                <button 
+                                    onClick={prevStep} 
+                                    disabled={currentStepIndex === 0}
+                                    className="flex-1 px-4 py-3 bg-white border border-slate-300 rounded-lg text-slate-600 font-semibold hover:bg-slate-50 disabled:opacity-50 transition shadow-sm"
+                                >
+                                    ← 戻る
+                                </button>
+                                <button 
+                                    onClick={nextStep} 
+                                    disabled={currentStepIndex === STEPS.length - 1}
+                                    className="flex-1 px-4 py-3 bg-indigo-600 rounded-lg text-white font-semibold hover:bg-indigo-700 disabled:opacity-50 shadow-md transition"
+                                >
+                                    次へ →
+                                </button>
+                            </div>
+                            
+                            <div className="bg-white p-5 rounded-lg border border-slate-200 shadow-sm" key={currentStepIndex}>
+                                <h3 className="font-bold text-lg text-indigo-900 mb-2">{currentStep.title}</h3>
+                                <p className="text-slate-600 text-sm leading-relaxed">
+                                    {currentStep.description}
+                                </p>
+                            </div>
+                        </div>
+
+                        <div className="md:col-span-2 bg-white p-5 rounded-lg border border-slate-200 shadow-sm min-h-[160px]">
+                            <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">語順で理解する (直読直解)</h4>
+                            <div className="flex flex-wrap gap-2 text-lg items-end">
+                                {getActiveJpChunks().length > 0 ? (
+                                    getActiveJpChunks().map((chunk, i) => (
+                                        <div key={i} className="flex flex-col items-center fade-in" style={{ animationDelay: `${i * 0.05}s` }}>
+                                            <span 
+                                                className="px-3 py-1 rounded text-slate-800 font-medium border-b-2 text-base md:text-lg"
+                                                style={{ 
+                                                    backgroundColor: ROLE_STYLES[chunk.role]?.bg || '#f1f5f9',
+                                                    borderColor: ROLE_STYLES[chunk.role]?.color || '#cbd5e1'
+                                                }}
+                                            >
+                                                {chunk.text}
+                                            </span>
+                                            <span className="text-[10px] font-bold mt-1 text-slate-400">
+                                                {ROLE_STYLES[chunk.role]?.label || ''}
+                                            </span>
+                                        </div>
+                                    ))
+                                ) : (
+                                    <p className="text-slate-400 italic opacity-50 transition-opacity duration-300">
+                                        ...
+                                    </p>
+                                )}
+                            </div>
+                        </div>
+                    </section>
+                </div>
+            );
+        };
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
